@@ -803,7 +803,7 @@ function ekstreSatirlari(id){
  const out=[],tn={satis:'Satış',alis:'Alış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Önceki yıldan devir',devirk:'Yeni yıl carisine devir'};
  db.hareketler.filter(h=>h.cariId===id).forEach(h=>{
   const t=tot(h),p=h.tip==='alis'||h.tip==='satis';
-  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:p?(h.fiyatDahil&&h.birimDahil!=null?h.adet+' × '+pn(h.birimDahil)+' ₺ (KDV dahil, %'+h.kdv+')':h.adet+' × '+pn(h.birim)+' ₺ + KDV %'+h.kdv):'',fatura:h.fatura||'',kdvAlt:p?'KDV %'+h.kdv+': ₺'+pn(t-h.adet*h.birim):'',
+  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:p?(h.fiyatDahil&&h.birimDahil!=null?h.adet+' × '+'₺'+pn(h.birimDahil)+' (KDV dahil, %'+h.kdv+')':h.adet+' × '+'₺'+pn(h.birim)+' + KDV %'+h.kdv):'',fatura:h.fatura||'',kdvAlt:p?'KDV %'+h.kdv+': ₺'+pn(t-h.adet*h.birim):'',
    borc:borcSutunu(h)?t:0,alacak:borcSutunu(h)?0:t});
  });
  db.cekler.filter(c=>c.cariId===id&&c.durum!=='odenmedi').forEach(c=>{
@@ -1065,14 +1065,14 @@ async function hazinePdf(bolumler,bas,bit,dosyaBaslik){
   if(bas&&Math.abs(devir)>0.004)sat.push([fd(bas),'Devir','','Dönem başı bakiyesi','','',{s:bakS(devir),f:'B'}]);
   liste.forEach(r=>{
    const vm=r.virman;
-   if(tumMu&&vm){if(r.yon==='giris')sat.push([fd(r.t),'Virman',{s:HESAP_AD[r.hesap]+' hesabına',boyut:7.5,renk:MUT},'',[r.ad||'Kasa-Banka aktarımı',{s:'Tutar: '+pn(r.tutar)+' ₺ (toplam nakit değişmez)',boyut:7.5,renk:MUT}],'','','']);return}
+   if(tumMu&&vm){if(r.yon==='giris')sat.push([fd(r.t),'Virman',{s:HESAP_AD[r.hesap]+' hesabına',boyut:7.5,renk:MUT},'',[r.ad||'Kasa-Banka aktarımı',{s:'Tutar: '+'₺'+pn(r.tutar)+' (toplam nakit değişmez)',boyut:7.5,renk:MUT}],'','','']);return}
    const g=r.yon==='giris'?r.tutar:0,c=r.yon==='cikis'?r.tutar:0;run=yuvarla(run+g-c);tg+=g;tc+=c;
    const ac=[r.kart&&((r.yontem==='havale'?'Banka: ':'Kart/POS: ')+r.kart),r.taksit&&(r.taksit+'. taksit'),r.ad,r.fatura&&('Fatura: '+r.fatura)].filter(Boolean);
    sat.push([fd(r.t),[r.tur,tumMu?{s:HESAP_AD[r.hesap]+' · '+YONTEM_KISA[r.yontem],boyut:7,renk:MUT}:null],r.cari,ac,g?{s:pn(g),renk:GRN}:'',c?{s:pn(c),renk:RED}:'',{s:bakS(run),f:'B'}]);
   });
   tablo(kol,sat,'Seçilen dönemde hareket bulunmuyor.');
-  const oz=[];if(bas&&Math.abs(devir)>0.004)oz.push(['Devir bakiyesi',bakS(devir)+' ₺']);oz.push(['Toplam Giriş',pn(tg)+' ₺',GRN],['Toplam Çıkış',pn(tc)+' ₺',RED]);
-  ozetKutusu(oz,[tumMu?'TOPLAM NAKİT':'BAKİYE',bakS(run)+' ₺',run<-0.004?RED:DARK]);
+  const oz=[];if(bas&&Math.abs(devir)>0.004)oz.push(['Devir bakiyesi','₺'+bakS(devir)]);oz.push(['Toplam Giriş','₺'+pn(tg),GRN],['Toplam Çıkış','₺'+pn(tc),RED]);
+  ozetKutusu(oz,[tumMu?'TOPLAM NAKİT':'BAKİYE','₺'+bakS(run),run<-0.004?RED:DARK]);
  }
  /* ---- kredi kartı ---- */
  function kartBolum(){
@@ -1089,7 +1089,7 @@ async function hazinePdf(bolumler,bas,bit,dosyaBaslik){
    sat.push([fd(x.t),[{s:gi?'Tahsilat':'Ödeme',f:'B',renk:gi?GRN:RED,boyut:8},x.cari,x.ad,x.fatura&&('Fatura: '+x.fatura)],x.r.kart||'-',tk?['Toplam '+tk.n+' taksit','İlk: '+fd(plan[0].t),'Son: '+fd(plan[plan.length-1].t),{s:say+'/'+tk.n+' taksit gerçekleşti',renk:say>=tk.n?GRN:[190,120,0]}]:'Tek çekim',pn(x.tutar),{s:pn(gerc),renk:gi?GRN:RED},bek>0.004?{s:pn(bek),renk:[190,120,0]}:'-']);
   });
   tablo(kol,sat,'Seçilen dönemde kredi kartı işlemi bulunmuyor.');
-  ozetKutusu([['Kart tahsilatı — toplam',pn(T.giris.t)+' ₺'],['   gerçekleşen (bankaya geçen)',pn(T.giris.g)+' ₺',GRN],['   bekleyen taksitler',pn(T.giris.k)+' ₺'],['Kart ödemesi — toplam',pn(T.cikis.t)+' ₺'],['   gerçekleşen (bankadan çıkan)',pn(T.cikis.g)+' ₺',RED],['   bekleyen taksitler',pn(T.cikis.k)+' ₺']]);
+  ozetKutusu([['Kart tahsilatı — toplam','₺'+pn(T.giris.t)],['   gerçekleşen (bankaya geçen)','₺'+pn(T.giris.g),GRN],['   bekleyen taksitler','₺'+pn(T.giris.k)],['Kart ödemesi — toplam','₺'+pn(T.cikis.t)],['   gerçekleşen (bankadan çıkan)','₺'+pn(T.cikis.g),RED],['   bekleyen taksitler','₺'+pn(T.cikis.k)]]);
   notYaz('Kredi kartı tutarları taksit vadesi geldikçe bankaya işlenir. "Gerçekleşen" bugüne kadar vadesi gelen kısmı, "Bekleyen" vadesi gelmemiş taksitleri gösterir.');
  }
  /* ---- çek / senet ---- */
@@ -1116,7 +1116,7 @@ async function hazinePdf(bolumler,bas,bit,dosyaBaslik){
   }
   const o=[];
   ['alacak','verecek'].forEach(y2=>{const t=T[y2],ad2=y2==='alacak'?'Alınan':'Verilen';
-   if(t.bekliyor+t.kapandi+t.ciro+t.odenmedi>0){o.push([ad2+' — bekleyen',pn(t.bekliyor)+' ₺']);o.push([ad2+' — '+(y2==='alacak'?'tahsil edilen':'ödenen'),pn(t.kapandi)+' ₺',y2==='alacak'?GRN:RED]);if(y2==='alacak')o.push([ad2+' — ciro edilen',pn(t.ciro)+' ₺']);o.push([ad2+' — ödenmedi',pn(t.odenmedi)+' ₺',t.odenmedi>0?RED:undefined])}});
+   if(t.bekliyor+t.kapandi+t.ciro+t.odenmedi>0){o.push([ad2+' — bekleyen','₺'+pn(t.bekliyor)]);o.push([ad2+' — '+(y2==='alacak'?'tahsil edilen':'ödenen'),'₺'+pn(t.kapandi),y2==='alacak'?GRN:RED]);if(y2==='alacak')o.push([ad2+' — ciro edilen','₺'+pn(t.ciro)]);o.push([ad2+' — ödenmedi','₺'+pn(t.odenmedi),t.odenmedi>0?RED:undefined])}});
   if(o.length)ozetKutusu(o);
  }
  /* ---- maaş / gider ---- */
@@ -1129,8 +1129,8 @@ async function hazinePdf(bolumler,bas,bit,dosyaBaslik){
    const od=[HESAP_AD[hesapOf(k)]+' · '+YONTEM_KISA[yontemOf(k)],k.kart&&{s:k.kart,boyut:7.5,renk:MUT},k.taksit&&k.taksit.n>1&&{s:k.taksit.n+' taksit',boyut:7.5,renk:MUT}];
    return vergi?[fd(k.tarih),k.vergiTur||'Diğer vergi',k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]:maas?[fd(k.tarih),k.kisi||'-',k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]:[fd(k.tarih),k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]});
   tablo(kol,sat,'Seçilen dönemde '+(maas?'maaş':vergi?'vergi':'genel')+' gideri bulunmuyor.');
-  const o=[];if(maas||vergi)Object.keys(kisi).sort((a,b)=>a.localeCompare(b,'tr')).forEach(a=>o.push([a,pn(kisi[a])+' ₺']));
-  ozetKutusu(o,['TOPLAM',pn(top)+' ₺',RED]);
+  const o=[];if(maas||vergi)Object.keys(kisi).sort((a,b)=>a.localeCompare(b,'tr')).forEach(a=>o.push([a,'₺'+pn(kisi[a])]));
+  ozetKutusu(o,['TOPLAM','₺'+pn(top),RED]);
  }
  /* ---- genel özet ---- */
  function ozetBolum(){
@@ -1370,13 +1370,13 @@ function ekstreXlsx(id,bas,bit,cekGoster){
  sat.push([XT('TOPLAM'),'','','',F('SUM('+rg('E')+')',5,e.tb),F('SUM('+rg('F')+')',5,e.ta),F('E'+(son+1)+'-F'+(son+1),5,e.bakiye)]);
  const tr=H0+sat.length-1,bk=e.bakiye;
  const cn=c.ad.replace(/"/g,'""'),fq=fnF.replace(/"/g,'""');
- const durum=bk>0.004?fnF+', '+c.ad+' firmasından alacaklıdır (tutar: '+pn(bk)+' ₺)':bk<-0.004?c.ad+' firması, '+fnF+' firmasından alacaklıdır (tutar: '+pn(-bk)+' ₺)':'Taraflar arasında borç/alacak bulunmamaktadır (hesap kapalı)';
+ const durum=bk>0.004?fnF+', '+c.ad+' firmasından alacaklıdır (tutar: '+'₺'+pn(bk)+')':bk<-0.004?c.ad+' firması, '+fnF+' firmasından alacaklıdır (tutar: '+'₺'+pn(-bk)+')':'Taraflar arasında borç/alacak bulunmamaktadır (hesap kapalı)';
  const ust=[{baslik:'CARİ HESAP EKSTRESİ'},
   ['',XB('Firma'),fn],
   ['',XB('Cari'),c.ad+(c.yil?' ('+c.yil+')':'')],
   ['',XB('Dönem'),(bas||bit)?((bas?fd(bas):'başlangıç')+' – '+(bit?fd(bit):fd(today()))):'Tüm hareketler'],
   ['',XB('Düzenleme tarihi'),fd(today())],
-  ['',XT('SONUÇ'),F('IF(G'+tr+'>0.004,"'+fq+', '+cn+' firmasından alacaklıdır (tutar: "&FIXED(G'+tr+',2)&" ₺)",IF(G'+tr+'<-0.004,"'+cn+' firması, '+fq+' firmasından alacaklıdır (tutar: "&FIXED(-G'+tr+',2)&" ₺)","Taraflar arasında borç/alacak bulunmamaktadır (hesap kapalı)"))',0,durum)],
+  ['',XT('SONUÇ'),F('IF(G'+tr+'>0.004,"'+fq+', '+cn+' firmasından alacaklıdır (tutar: ₺"&FIXED(G'+tr+',2)&")",IF(G'+tr+'<-0.004,"'+cn+' firması, '+fq+' firmasından alacaklıdır (tutar: ₺"&FIXED(-G'+tr+',2)&")","Taraflar arasında borç/alacak bulunmamaktadır (hesap kapalı)"))',0,durum)],
   []];
  return xlsxYaz([{ad:'Cari Ekstre',ust,freeze:false,kol:[{b:'Tarih',w:12},{b:'İşlem',w:46},{b:'Detay',w:34},{b:'Fatura',w:12},{b:'Borç (₺)',w:18},{b:'Alacak (₺)',w:18},{b:'Bakiye (₺)',w:18}],satir:sat}]);
 }
@@ -1482,7 +1482,7 @@ function tumVeriXlsx(){
   const sum=(k)=>'SUMIFS('+rg('L')+','+rg('K')+',"'+k+'")';
   const m=r2(V.Satış-V.Tahsilat),nn=r2(V.Alış-V.Ödeme),alacak=r2(Math.max(m,0)+Math.max(-nn,0)),verecek=r2(Math.max(nn,0)+Math.max(-m,0));
   const fnA=db.ayar.firma||'Firmamız',fnF=db.ayar.firma?fnA+' firması':fnA,qq_=x=>x.replace(/"/g,'""'),FNq=qq_(fnF),CNq=qq_(c.ad),net_=r2(alacak-verecek);
-  const durum=net_>0.004?fnF+', '+c.ad+' firmasından alacaklıdır (tutar: '+pn(net_)+' ₺)':net_<-0.004?c.ad+' firması, '+fnA+' firmasından alacaklıdır (tutar: '+pn(-net_)+' ₺)':'Taraflar arasında borç/alacak bulunmamaktadır (hesap kapalı)';
+  const durum=net_>0.004?fnF+', '+c.ad+' firmasından alacaklıdır (tutar: '+'₺'+pn(net_)+')':net_<-0.004?c.ad+' firması, '+fnA+' firmasından alacaklıdır (tutar: '+'₺'+pn(-net_)+')':'Taraflar arasında borç/alacak bulunmamaktadır (hesap kapalı)';
   const bek=t=>'SUMIFS('+rg('J')+','+rg('M')+',"Bekliyor",'+rg('K')+',"'+t+'")';
   const ust=[
    {baslik:'CARİ: '+cariEtiket(c)+' — hareketler, çek/senetler ve bakiye'},
@@ -1497,7 +1497,7 @@ function tumVeriXlsx(){
    ['','',XB('Bekleyen çek/senet — alınan'),F(bek('Tahsilat'),2,r2(ck.a))],
    ['','',XB('Bekleyen çek/senet — verilen'),F(bek('Ödeme'),2,r2(ck.v))],
    ['','',XB('Vadesi geçmiş bekleyen çek/senet adedi'),F('COUNTIFS('+rg('M')+',"Bekliyor",'+rg('N')+',"<"&TODAY())',0,ck.g)],
-   ['','',XT('DURUM — KİM ALACAKLI, KİM BORÇLU'),F('IF(D9>0.004,"'+FNq+', '+CNq+' firmasından alacaklıdır (tutar: "&FIXED(D9,2)&" ₺)",IF(D9<-0.004,"'+CNq+' firması, '+FNq+' firmasından alacaklıdır (tutar: "&FIXED(-D9,2)&" ₺)","Taraflar arasında borç/alacak bulunmamaktadır (hesap kapalı)"))',0,durum)],
+   ['','',XT('DURUM — KİM ALACAKLI, KİM BORÇLU'),F('IF(D9>0.004,"'+FNq+', '+CNq+' firmasından alacaklıdır (tutar: ₺"&FIXED(D9,2)&")",IF(D9<-0.004,"'+CNq+' firması, '+FNq+' firmasından alacaklıdır (tutar: ₺"&FIXED(-D9,2)&")","Taraflar arasında borç/alacak bulunmamaktadır (hesap kapalı)"))',0,durum)],
    []
   ];
   cariSay.push({c,sa:sAd[c.id],yil:c.yil,durum,V:{sa:r2(V.Satış),al:r2(V.Alış),ta:r2(V.Tahsilat),od:r2(V.Ödeme),alacak,verecek,net:r2(alacak-verecek),ba:r2(ck.a),bv:r2(ck.v),g:ck.g}});
@@ -2470,9 +2470,9 @@ async function teklifPdf(t){
  const not=t.not?t.not.split('\n').flatMap(l=>P.sar(l,'R',8.5,Rr-L)):[];
  if(y+40+not.length*4>272)sayfaBasla(false);
  y+=6;const bx=118;let yy=y;
- [[dahil?'Ara Toplam (KDV hariç)':'Ara Toplam',pn(T.a)+' ₺'],['KDV (%'+sy(t.kdv)+')',pn(T.k)+' ₺']].forEach(a=>{P.yaz(bx,yy+4,a[0],{boyut:8.5,renk:MUT});P.yaz(Rr-1.5,yy+4,a[1],{boyut:8.5,hiza:'sag'});yy+=5.2});
+ [[dahil?'Ara Toplam (KDV hariç)':'Ara Toplam','₺'+pn(T.a)],['KDV (%'+sy(t.kdv)+')','₺'+pn(T.k)]].forEach(a=>{P.yaz(bx,yy+4,a[0],{boyut:8.5,renk:MUT});P.yaz(Rr-1.5,yy+4,a[1],{boyut:8.5,hiza:'sag'});yy+=5.2});
  P.cizgi(bx,yy+0.8,Rr,yy+0.8,DARK,0.4);yy+=2.5;
- P.kutu(bx,yy,Rr-bx,9.5,[255,243,222]);P.yaz(bx+2,yy+6.5,'GENEL TOPLAM',{f:'B',boyut:9.5});P.yaz(Rr-2,yy+6.5,pn(T.g)+' ₺',{f:'B',boyut:11,hiza:'sag'});
+ P.kutu(bx,yy,Rr-bx,9.5,[255,243,222]);P.yaz(bx+2,yy+6.5,'GENEL TOPLAM',{f:'B',boyut:9.5});P.yaz(Rr-2,yy+6.5,'₺'+pn(T.g),{f:'B',boyut:11,hiza:'sag'});
  yy+=16;
  not.forEach(l=>{P.yaz(L,yy,l,{boyut:8.5,renk:[80,80,80]});yy+=4.2});
  const n=P.adet();
