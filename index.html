@@ -637,6 +637,14 @@ async function sifirla(){
  if(!await ask('Emin misiniz? Cariler, hareketler, çek/senetler ve teklifler silinir.','Evet, hepsini sil'))return;
  if(!yonetici())return;await yazSira;lsSet(PKEY,lsGet(KEY2)||'');const ku=db.kullanicilar;db=DEF();db.kullanicilar=ku;save();render();toast('Tüm veriler silindi. Yüklemeyi geri alarak dönebilirsiniz.',5000);
 }
+/* "Başlık: değer" satırında başlık hafif koyu, değer açık renkte çizilir */
+function bilgiSatir(P,x,y,l,boyut,deger){
+ const LAB=[30,30,30];let cx=x;
+ String(l).split(/(Vergi Dairesi:|Vergi No \/ TC:|Vergi No:|Tel:|E-posta:|Adres:)/).forEach((p,i)=>{
+  if(!p)return;const bas=i%2===1;
+  P.yaz(cx,y,p,{boyut,renk:bas?LAB:deger});cx+=P.olc(p,'R',boyut);
+ });
+}
 function firmaSatirlari(a){a=a||db.ayar;return [[a.vdairesi&&('Vergi Dairesi: '+a.vdairesi),a.vergi&&('Vergi No: '+a.vergi)].filter(Boolean).join('   '),a.tel&&('Tel: '+a.tel),a.eposta&&('E-posta: '+a.eposta),a.adres].filter(Boolean)}
 function firmaKaydet(){db.ayar={...db.ayar,firma:$('#s_firma').value.trim(),vdairesi:$('#s_vd').value.trim(),vergi:$('#s_vno').value.trim(),tel:$('#s_tel').value.trim(),eposta:$('#s_eposta').value.trim(),adres:$('#s_adres').value.trim(),kdv:parseFloat($('#s_kdv').value)||0};save();toast('Kaydedildi ✓')}
 function pgAyarlar(){
@@ -795,7 +803,7 @@ function ekstreSatirlari(id){
  const out=[],tn={satis:'Satış',alis:'Alış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Önceki yıldan devir',devirk:'Yeni yıl carisine devir'};
  db.hareketler.filter(h=>h.cariId===id).forEach(h=>{
   const t=tot(h),p=h.tip==='alis'||h.tip==='satis';
-  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:p?(h.fiyatDahil&&h.birimDahil!=null?h.adet+' × '+pn(h.birimDahil)+' ₺ (KDV dahil, %'+h.kdv+')':h.adet+' × '+pn(h.birim)+' ₺ + KDV %'+h.kdv):'',fatura:h.fatura||'',
+  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:p?(h.fiyatDahil&&h.birimDahil!=null?h.adet+' × '+pn(h.birimDahil)+' ₺ (KDV dahil, %'+h.kdv+')':h.adet+' × '+pn(h.birim)+' ₺ + KDV %'+h.kdv):'',fatura:h.fatura||'',kdvAlt:p?'KDV %'+h.kdv+': ₺'+pn(t-h.adet*h.birim):'',
    borc:borcSutunu(h)?t:0,alacak:borcSutunu(h)?0:t});
  });
  db.cekler.filter(c=>c.cariId===id&&c.durum!=='odenmedi').forEach(c=>{
@@ -826,7 +834,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  const firma=db.ayar.firma||'Firma Adınız',bugun=fd(today());
  const donem=(bas||bit)?((bas?fd(bas):'başlangıç')+' – '+(bit?fd(bit):bugun)):'Tüm hareketler';
  let y=0;
- const bakT=v=>pn(Math.abs(v))+' ₺'+(v>0.004?' (B)':v<-0.004?' (A)':'');
+ const bakT=v=>'₺'+pn(Math.abs(v))+(v>0.004?' (B)':v<-0.004?' (A)':'');
  const bakS=v=>pn(Math.abs(v))+(v>0.004?' (B)':v<-0.004?' (A)':'');
  function sayfaBasla(ilk){
   P.yeni();P.kutu(0,0,210,3,OR);
@@ -834,7 +842,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   let fy=15,ty=20;
   if(LG){const lw=42,lh=lw*LG.h/LG.w;P.resim(L,7,lw,lh);fy=7+lh+6.5;ty=fy+5}
   P.yaz(L,fy,firma,{f:'B',boyut:LG?12:15});
-  let yy=ty;firmaSatirlari().forEach(t=>P.sar(t,'R',8.5,90).forEach(l=>{P.yaz(L,yy,l,{boyut:8.5,renk:MUT});yy+=4.2}));
+  let yy=ty;firmaSatirlari().forEach(t=>P.sar(t,'R',8.5,90).forEach(l=>{bilgiSatir(P,L,yy,l,8.5,[95,95,95]);yy+=4.2}));
   P.yaz(Rr,15,'CARİ HESAP EKSTRESİ',{f:'B',boyut:14,hiza:'sag'});
   P.yaz(Rr,21,'Düzenleme tarihi: '+bugun,{boyut:8.5,renk:MUT,hiza:'sag'});
   P.yaz(Rr,25.5,'Dönem: '+donem,{boyut:8.5,renk:MUT,hiza:'sag'});
@@ -854,7 +862,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   P.kutu(L,y,Rr-L,h,[246,246,246]);P.kutu(L,y,1.2,h,OR);
   P.yaz(L+5,y+4.6,'SAYIN',{boyut:7,renk:MUT});
   adL.forEach((l,i)=>P.yaz(L+5,y+10+i*5.4,l,{f:'B',boyut:12}));
-  sat.forEach((l,i)=>P.yaz(L+5,y+10+adL.length*5.4+1+i*4.4,l,{boyut:8.5,renk:[60,60,60]}));
+  sat.forEach((l,i)=>bilgiSatir(P,L+5,y+10+adL.length*5.4+1+i*4.4,l,8.5,[95,95,95]));
   y+=h+7;
  }
  function tabloBasi(){
@@ -878,6 +886,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   fl.forEach((l,i)=>P.yaz(96.5,ty+i*4.1,l,{boyut:8.5}));
   if(r.borc)P.yaz(144,ty,pn(r.borc),{boyut:8.5,hiza:'sag'});
   if(r.alacak)P.yaz(170,ty,pn(r.alacak),{boyut:8.5,hiza:'sag'});
+  if(r.kdvAlt)P.yaz(r.borc?144:170,ty+(dl.length-1)*4.1+3.4,r.kdvAlt,{boyut:7,renk:MUT,hiza:'sag'});
   P.yaz(196.5,ty,bakS(r.bak),{f:'B',boyut:8.5,hiza:'sag'});
   y+=hh;P.cizgi(L,y,Rr,y,[232,232,232],0.15);
  }
@@ -887,9 +896,9 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  E.liste.forEach(satir);
  /* özet */
  const net=E.bakiye;
- const durum=net>0.004?'Dönem sonu itibarıyla hesabınızda '+pn(net)+' ₺ tutarında borç bakiyesi bulunmaktadır.':net<-0.004?'Dönem sonu itibarıyla hesabınızda '+pn(-net)+' ₺ tutarında alacak bakiyesi bulunmaktadır (firmamızın borcudur).':'Dönem sonu itibarıyla hesap bakiyesi bulunmamaktadır.';
+ const durum=net>0.004?'Dönem sonu itibarıyla hesabınızda '+'₺'+pn(net)+' tutarında borç bakiyesi bulunmaktadır.':net<-0.004?'Dönem sonu itibarıyla hesabınızda '+'₺'+pn(-net)+' tutarında alacak bakiyesi bulunmaktadır (firmamızın borcudur).':'Dönem sonu itibarıyla hesap bakiyesi bulunmamaktadır.';
  const dl=P.sar(durum,'R',9,Rr-L-4),not=P.sar('(B) Borç bakiyesi: tutar firmamıza ödenecektir.   (A) Alacak bakiyesi: tutar firmamız tarafından ödenecektir.   Tüm tutarlar KDV dahildir.','R',7.5,Rr-L);
- const ozs=[];if(bas&&Math.abs(E.devir)>0.004)ozs.push(['Devir bakiyesi',bakT(E.devir)]);ozs.push(['Toplam Borç',pn(E.tb)+' ₺'],['Toplam Alacak',pn(E.ta)+' ₺']);
+ const ozs=[];if(bas&&Math.abs(E.devir)>0.004)ozs.push(['Devir bakiyesi',bakT(E.devir)]);ozs.push(['Toplam Borç','₺'+pn(E.tb)],['Toplam Alacak','₺'+pn(E.ta)]);
  const ih=ozs.length*5.2+24+dl.length*4.4+not.length*3.6;
  if(y+8+ih>272)sayfaBasla(false);
  y+=6;const bx=118;let yy=y;
@@ -1000,7 +1009,7 @@ async function hazinePdf(bolumler,bas,bit,dosyaBaslik){
   let fy=15,ty=20;
   if(LG){const lw=42,lh=lw*LG.h/LG.w;P.resim(L,7,lw,lh);fy=7+lh+6.5;ty=fy+5}
   P.yaz(L,fy,firma,{f:'B',boyut:LG?12:15});
-  let yy=ty;firmaSatirlari().forEach(t=>P.sar(t,'R',8.5,90).forEach(l=>{P.yaz(L,yy,l,{boyut:8.5,renk:MUT});yy+=4.2}));
+  let yy=ty;firmaSatirlari().forEach(t=>P.sar(t,'R',8.5,90).forEach(l=>{bilgiSatir(P,L,yy,l,8.5,[95,95,95]);yy+=4.2}));
   P.yaz(Rr,15,ustBaslik,{f:'B',boyut:14,hiza:'sag'});
   P.yaz(Rr,21,'Düzenleme tarihi: '+bugun,{boyut:8.5,renk:MUT,hiza:'sag'});
   P.yaz(Rr,25.5,'Dönem: '+donem,{boyut:8.5,renk:MUT,hiza:'sag'});
@@ -2384,6 +2393,8 @@ function pgTeklif(){
  <h3 style="margin:22px 0 8px">Kayıtlı Teklifler</h3>
  ${db.teklifler.length?`<div class="tw"><table><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th class="r">Toplam</th><th></th></tr>${db.teklifler.slice().reverse().map(t=>`<tr data-rid="${t.id}"><td>${esc(t.no)}</td><td>${fd(t.tarih)}</td><td>${esc(t.musteri)}</td><td class="r"><b>${fmt(tkTop(t).g)}</b></td><td><button class="btn sm" onclick="tkAc('${t.id}')">Aç</button> <button class="btn ghost sm" onclick="tkPdfId('${t.id}')">PDF</button> <button class="btn dng sm" onclick="confirmDel('Teklif silinsin mi?',()=>db.teklifler=db.teklifler.filter(x=>x.id!=='${t.id}'))">✕</button></td></tr>`).join('')}</table></div>`:'<div class="empty">Kayıtlı teklif yok.</div>'}`;
 }
+function tkKdvTutar(i,t){const s=i.adet*i.birim,o=+t.kdv||0;return t.dahil?s-s/(1+o/100):s*o/100}
+const tkKdvMetin=(i,t)=>fmt(tkKdvTutar(i,t))+' (%'+String(t.kdv).replace('.',',')+')';
 function tkTop(t){const s=t.items.reduce((x,i)=>x+i.adet*i.birim,0);if(t.dahil){const g=s,a=g/(1+t.kdv/100);return{a,k:g-a,g}}const k=s*t.kdv/100;return{a:s,k,g:s+k}}
 function musteriSatirlari(t){const m=t.mb||{};return [[m.vdairesi&&('Vergi Dairesi: '+m.vdairesi),m.vergi&&('Vergi No / TC: '+m.vergi)].filter(Boolean).join('   '),[m.tel&&('Tel: '+m.tel),m.eposta&&('E-posta: '+m.eposta)].filter(Boolean).join('   '),m.adres&&('Adres: '+m.adres)].filter(Boolean)}
 function initTeklif(){
@@ -2407,8 +2418,8 @@ function tkBody(){
  return `<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div>${window.__LOGO?`<img src="${LOGO_SRC}" alt="Logo" style="height:58px;width:auto;display:block;margin-bottom:8px">`:''}<h2>TEKLİF</h2><div>No: <b>${esc(tk.no)}</b></div><div>Tarih: ${fd(tk.tarih)}</div>${tk.gecerlilik?`<div>Geçerlilik: ${fd(tk.gecerlilik)}</div>`:''}</div>
  <div style="text-align:right"><b>${esc(a.firma||'Firma Adınız')}</b>${firmaSatirlari(a).map(l=>`<div>${esc(l)}</div>`).join('')}</div></div>
  <div style="margin:14px 0;padding:10px;background:#fff6e6;border-left:4px solid #ff7a00"><small>Sayın</small><br><b>${esc(tk.musteri||'—')}</b>${musteriSatirlari(tk).map(l=>`<div style="font-size:13px;color:#444">${esc(l)}</div>`).join('')}</div>
- <table><tr><th>#</th><th>Ürün / Hizmet</th><th class="r">Adet</th><th class="r">Birim Fiyat${tk.dahil?' (KDV dahil)':''}</th><th class="r">Tutar${tk.dahil?' (KDV dahil)':''}</th></tr>
- ${tk.items.map((i,n)=>`<tr><td>${n+1}</td><td>${esc(i.ad)}</td><td class="r">${i.adet}</td><td class="r">${fmt(i.birim)}</td><td class="r">${fmt(i.adet*i.birim)}</td></tr>`).join('')}</table>
+ <table><tr><th>#</th><th>Ürün / Hizmet</th><th class="r">Adet</th><th class="r">Birim Fiyat${tk.dahil?' (KDV dahil)':''}</th><th class="r">KDV</th><th class="r">Tutar${tk.dahil?' (KDV dahil)':''}</th></tr>
+ ${tk.items.map((i,n)=>`<tr><td>${n+1}</td><td>${esc(i.ad)}</td><td class="r">${i.adet}</td><td class="r">${fmt(i.birim)}</td><td class="r">${tkKdvMetin(i,tk)}</td><td class="r">${fmt(i.adet*i.birim)}</td></tr>`).join('')}</table>
  <div class="tt"><div><span>Ara Toplam${tk.dahil?' (KDV hariç)':''}</span><span>${fmt(t.a)}</span></div><div><span>KDV (%${tk.kdv})</span><span>${fmt(t.k)}</span></div><div class="g"><span>GENEL TOPLAM</span><span>${fmt(t.g)}</span></div></div>
  ${tk.not?`<p style="margin-top:16px;color:#555;white-space:pre-wrap">${esc(tk.not)}</p>`:''}`;
 }
@@ -2426,7 +2437,7 @@ async function teklifPdf(t){
   let fy=15,ty=20;
   if(LG){const lw=42,lh=lw*LG.h/LG.w;P.resim(L,7,lw,lh);fy=7+lh+6.5;ty=fy+5}
   P.yaz(L,fy,firma,{f:'B',boyut:LG?12:15});
-  let yy=ty;firmaSatirlari().forEach(x=>P.sar(x,'R',8.5,90).forEach(l=>{P.yaz(L,yy,l,{boyut:8.5,renk:MUT});yy+=4.2}));
+  let yy=ty;firmaSatirlari().forEach(x=>P.sar(x,'R',8.5,90).forEach(l=>{bilgiSatir(P,L,yy,l,8.5,[95,95,95]);yy+=4.2}));
   P.yaz(Rr,15,'TEKLİF',{f:'B',boyut:16,hiza:'sag',renk:OR});
   P.yaz(Rr,21,'No: '+t.no,{boyut:8.5,renk:MUT,hiza:'sag'});
   P.yaz(Rr,25.5,'Tarih: '+fd(t.tarih),{boyut:8.5,renk:MUT,hiza:'sag'});
@@ -2437,23 +2448,23 @@ async function teklifPdf(t){
   P.kutu(L,y,Rr-L,h,[246,246,246]);P.kutu(L,y,1.2,h,OR);
   P.yaz(L+5,y+4.6,'SAYIN',{boyut:7,renk:MUT});
   adL.forEach((l,i)=>P.yaz(L+5,y+10+i*5.4,l,{f:'B',boyut:12}));
-  sat.forEach((l,i)=>P.yaz(L+5,y+10+adL.length*5.4+1+i*4.4,l,{boyut:8.5,renk:[60,60,60]}));
+  sat.forEach((l,i)=>bilgiSatir(P,L+5,y+10+adL.length*5.4+1+i*4.4,l,8.5,[95,95,95]));
   y+=h+7;
  }
  function tabloBasi(){
   P.kutu(L,y,Rr-L,7,DARK);const ty=y+4.8,o={f:'B',boyut:8,renk:YEL};
-  P.yaz(13.5,ty,'#',o);P.yaz(22,ty,'Ürün / Hizmet',o);P.yaz(118,ty,'Adet',Object.assign({hiza:'sag'},o));
-  P.yaz(156,ty,dahil?'Birim (KDV dahil)':'Birim Fiyat (₺)',Object.assign({hiza:'sag'},o));P.yaz(196.5,ty,dahil?'Tutar (KDV dahil)':'Tutar (₺)',Object.assign({hiza:'sag'},o));
+  P.yaz(13.5,ty,'#',o);P.yaz(22,ty,'Ürün / Hizmet',o);P.yaz(104,ty,'Adet',Object.assign({hiza:'sag'},o));
+  P.yaz(134,ty,dahil?'Birim (KDV dahil)':'Birim Fiyat (₺)',Object.assign({hiza:'sag'},o));P.yaz(162,ty,'KDV',Object.assign({hiza:'sag'},o));P.yaz(196.5,ty,dahil?'Tutar (KDV dahil)':'Tutar (₺)',Object.assign({hiza:'sag'},o));
   y+=7;
  }
  sayfaBasla(true);tabloBasi();
  t.items.forEach((it,n)=>{
-  const dl=P.sar(it.ad||'-','R',8.5,88),hh=dl.length*4.1+3.4;
+  const dl=P.sar(it.ad||'-','R',8.5,74),hh=dl.length*4.1+3.4;
   if(y+hh>262){sayfaBasla(false);tabloBasi()}
   if(n%2)P.kutu(L,y,Rr-L,hh,[250,250,250]);
   const ty=y+4.2;
   P.yaz(13.5,ty,String(n+1),{boyut:8.5});dl.forEach((l,i)=>P.yaz(22,ty+i*4.1,l,{boyut:8.5}));
-  P.yaz(118,ty,sy(it.adet),{boyut:8.5,hiza:'sag'});P.yaz(156,ty,pn(it.birim),{boyut:8.5,hiza:'sag'});P.yaz(196.5,ty,pn(it.adet*it.birim),{f:'B',boyut:8.5,hiza:'sag'});
+  P.yaz(104,ty,sy(it.adet),{boyut:8.5,hiza:'sag'});P.yaz(134,ty,pn(it.birim),{boyut:8.5,hiza:'sag'});P.yaz(162,ty,pn(tkKdvTutar(it,t))+' (%'+sy(t.kdv)+')',{boyut:8.5,hiza:'sag'});P.yaz(196.5,ty,pn(it.adet*it.birim),{f:'B',boyut:8.5,hiza:'sag'});
   y+=hh;P.cizgi(L,y,Rr,y,[232,232,232],0.15);
  });
  const not=t.not?t.not.split('\n').flatMap(l=>P.sar(l,'R',8.5,Rr-L)):[];
