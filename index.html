@@ -50,7 +50,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 th{background:#1a1a1a;color:var(--y);text-align:left;padding:10px;font-weight:600;white-space:nowrap}
 td{padding:10px;border-top:1px solid var(--line);white-space:nowrap}
 tr.tot td{background:#1a1a1a;font-weight:700}
-tr.gun2>td{background:#232323}
+tr.gunbos>td{height:14px;padding:0;border:0;background:transparent}
 .r{text-align:right}
 .cari{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;transition:.15s}
 .cari:hover{border-color:var(--o)}
@@ -857,12 +857,14 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   P.yaz(144,ty,'Borç (₺)',Object.assign({hiza:'sag'},o));P.yaz(170,ty,'Alacak (₺)',Object.assign({hiza:'sag'},o));P.yaz(196.5,ty,'Bakiye (₺)',Object.assign({hiza:'sag'},o));
   y+=7;
  }
- let zebra=0;
+ let sonGun=null;
  function satir(r){
   const dl=P.sar(r.ad,'R',8.5,61),fl=P.sar(r.fatura||'-','R',8.5,21);
   const hh=Math.max(4.2+(dl.length-1)*4.1+(r.alt?3.4:0),4.2+(fl.length-1)*4.1)+2.4;
-  if(y+hh>272){sayfaBasla(false);tabloBasi()}
-  if(zebra++%2)P.kutu(L,y,Rr-L,hh,[250,250,250]);
+  const yeniGun=sonGun!==null&&r.t!==sonGun;
+  if(y+hh+(yeniGun?4:0)>272){sayfaBasla(false);tabloBasi()}
+  else if(yeniGun)y+=4;
+  sonGun=r.t;
   const ty=y+4.2;
   P.yaz(13.5,ty,r.t?fd(r.t):'',{boyut:8.5});
   dl.forEach((l,i)=>P.yaz(32,ty+i*4.1,l,{boyut:8.5}));
@@ -2101,11 +2103,9 @@ function odenmediYap(id){
   c.durum='odenmedi';c.odenmediTarih=today();save();render()});
 }
 function odenmediGeriAl(id){const c=db.cekler.find(x=>x.id===id);if(!c||c.durum!=='odenmedi')return;c.durum='bekliyor';delete c.odenmediTarih;save();render()}
-/* Aynı güne ait satırlar aynı zemin renginde; her yeni günde zemin siyah ↔ gri değişir */
-function gunAyir(L,fn){let onc=null,k=0;return L.map(x=>{let r=fn(x);const t=String(x.tarih||'').slice(0,10);
- if(onc!==null&&t!==onc)k++;onc=t;
- if(k%2)r=/^<tr[^>]*class="/.test(r)?r.replace(/^<tr([^>]*)class="/,'<tr$1class="gun2 '):r.replace(/^<tr/,'<tr class="gun2"');
- return r}).join('')}
+/* Aynı güne ait satırlar bitişik kalır; gün değişince araya boşluk bırakılır */
+function gunAyir(L,fn){let onc=null;return L.map(x=>{const r=fn(x),t=String(x.tarih||'').slice(0,10);
+ const bos=onc!==null&&t!==onc?'<tr class="gunbos"><td colspan="20"></td></tr>':'';onc=t;return bos+r}).join('')}
 function cekSatir(c){
  const al=c.yon==='alacak',kap=c.durum==='kapandi';
  const det=['No: '+c.no,c.banka&&('Banka: '+c.banka),c.vade?'Vade: '+fd(c.vade):'',c.not,al?'Müşteriden alındı':'Firmaya verildi',c.durum==='odenmedi'?'ÖDENMEDİ (cari toplamına dahil değil)':''].filter(Boolean);
