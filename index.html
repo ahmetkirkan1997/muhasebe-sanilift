@@ -637,6 +637,16 @@ async function sifirla(){
  if(!await ask('Emin misiniz? Cariler, hareketler, çek/senetler ve teklifler silinir.','Evet, hepsini sil'))return;
  if(!yonetici())return;await yazSira;lsSet(PKEY,lsGet(KEY2)||'');const ku=db.kullanicilar;db=DEF();db.kullanicilar=ku;save();render();toast('Tüm veriler silindi. Yüklemeyi geri alarak dönebilirsiniz.',5000);
 }
+/* Bilgi öğelerini noktalı olarak yan yana dizer; sığmayanı alt satıra geçirir */
+function bilgiDiz(P,ogeler,gen){
+ const sat=[];let cur='';
+ ogeler.filter(Boolean).map(t=>'· '+t).forEach(it=>{
+  if(P.olc(it,'R',8.5)>gen){if(cur){sat.push(cur);cur=''}P.sar(it,'R',8.5,gen).forEach(l=>sat.push(l));return}
+  const aday=cur?cur+'   '+it:it;
+  if(!cur||P.olc(aday,'R',8.5)<=gen)cur=aday;else{sat.push(cur);cur=it}
+ });
+ if(cur)sat.push(cur);return sat;
+}
 /* "Başlık: değer" satırında başlık hafif koyu, değer açık renkte çizilir */
 function bilgiSatir(P,x,y,l,boyut,deger){
  const LAB=[30,30,30];let cx=x;
@@ -803,7 +813,7 @@ function ekstreSatirlari(id){
  const out=[],tn={satis:'Satış',alis:'Alış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Önceki yıldan devir',devirk:'Yeni yıl carisine devir'};
  db.hareketler.filter(h=>h.cariId===id).forEach(h=>{
   const t=tot(h),p=h.tip==='alis'||h.tip==='satis';
-  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:p?(h.fiyatDahil&&h.birimDahil!=null?h.adet+' × '+'₺'+pn(h.birimDahil)+' (KDV dahil, %'+h.kdv+')':h.adet+' × '+'₺'+pn(h.birim)+' + KDV %'+h.kdv):'',fatura:h.fatura||'',kdvAlt:p?'KDV %'+h.kdv+': ₺'+pn(t-h.adet*h.birim):'',
+  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:p?h.adet+' × '+'₺'+pn(h.fiyatDahil&&h.birimDahil!=null?h.birimDahil:h.birim*(1+(+h.kdv||0)/100))+' (KDV dahil, %'+h.kdv+')':'',fatura:h.fatura||'',
    borc:borcSutunu(h)?t:0,alacak:borcSutunu(h)?0:t});
  });
  db.cekler.filter(c=>c.cariId===id&&c.durum!=='odenmedi').forEach(c=>{
@@ -848,16 +858,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   P.yaz(Rr,25.5,'Dönem: '+donem,{boyut:8.5,renk:MUT,hiza:'sag'});
   if(c.yil)P.yaz(Rr,30,'Cari yılı: '+c.yil,{boyut:8.5,renk:MUT,hiza:'sag'});
   y=Math.max(yy,28)+2;P.cizgi(L,y,Rr,y,[220,220,220],0.3);y+=5;
-  const sat=[];{
-   const gen=Rr-L-10,ogeler=[c.vdairesi&&('Vergi Dairesi: '+c.vdairesi),c.vergi&&('Vergi No / TC: '+c.vergi),c.tel&&('Tel: '+c.tel),c.eposta&&('E-posta: '+c.eposta),c.adres&&('Adres: '+c.adres)].filter(Boolean).map(t=>'· '+t);
-   let cur='';
-   ogeler.forEach(it=>{
-    if(P.olc(it,'R',8.5)>gen){if(cur){sat.push(cur);cur=''}P.sar(it,'R',8.5,gen).forEach(l=>sat.push(l));return}
-    const aday=cur?cur+'   '+it:it;
-    if(!cur||P.olc(aday,'R',8.5)<=gen)cur=aday;else{sat.push(cur);cur=it}
-   });
-   if(cur)sat.push(cur);
-  }
+  const sat=bilgiDiz(P,[c.vdairesi&&('Vergi Dairesi: '+c.vdairesi),c.vergi&&('Vergi No / TC: '+c.vergi),c.tel&&('Tel: '+c.tel),c.eposta&&('E-posta: '+c.eposta),c.adres&&('Adres: '+c.adres)],Rr-L-10);
   const adL=P.sar(c.ad,'B',12,Rr-L-10),h=11+adL.length*5.4+sat.length*4.4;
   P.kutu(L,y,Rr-L,h,[246,246,246]);P.kutu(L,y,1.2,h,OR);
   P.yaz(L+5,y+4.6,'SAYIN',{boyut:7,renk:MUT});
@@ -886,7 +887,6 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   fl.forEach((l,i)=>P.yaz(96.5,ty+i*4.1,l,{boyut:8.5}));
   if(r.borc)P.yaz(144,ty,pn(r.borc),{boyut:8.5,hiza:'sag'});
   if(r.alacak)P.yaz(170,ty,pn(r.alacak),{boyut:8.5,hiza:'sag'});
-  if(r.kdvAlt)P.yaz(r.borc?144:170,ty+(dl.length-1)*4.1+3.4,r.kdvAlt,{boyut:7,renk:MUT,hiza:'sag'});
   P.yaz(196.5,ty,bakS(r.bak),{f:'B',boyut:8.5,hiza:'sag'});
   y+=hh;P.cizgi(L,y,Rr,y,[232,232,232],0.15);
  }
@@ -2443,7 +2443,7 @@ async function teklifPdf(t){
   P.yaz(Rr,25.5,'Tarih: '+fd(t.tarih),{boyut:8.5,renk:MUT,hiza:'sag'});
   if(t.gecerlilik)P.yaz(Rr,30,'Geçerlilik: '+fd(t.gecerlilik),{boyut:8.5,renk:MUT,hiza:'sag'});
   y=Math.max(yy,34)+2;P.cizgi(L,y,Rr,y,[220,220,220],0.3);y+=5;
-  const sat=musteriSatirlari(t).flatMap(l=>P.sar(l,'R',8.5,Rr-L-10));
+  const mb=t.mb||{},sat=bilgiDiz(P,[mb.vdairesi&&('Vergi Dairesi: '+mb.vdairesi),mb.vergi&&('Vergi No / TC: '+mb.vergi),mb.tel&&('Tel: '+mb.tel),mb.eposta&&('E-posta: '+mb.eposta),mb.adres&&('Adres: '+mb.adres)],Rr-L-10);
   const adL=P.sar(t.musteri||'—','B',12,Rr-L-10),h=11+adL.length*5.4+sat.length*4.4;
   P.kutu(L,y,Rr-L,h,[246,246,246]);P.kutu(L,y,1.2,h,OR);
   P.yaz(L+5,y+4.6,'SAYIN',{boyut:7,renk:MUT});
