@@ -845,7 +845,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
    let cur='';
    ogeler.forEach(it=>{
     if(P.olc(it,'R',8.5)>gen){if(cur){sat.push(cur);cur=''}P.sar(it,'R',8.5,gen).forEach(l=>sat.push(l));return}
-    const aday=cur?cur+'      '+it:it;
+    const aday=cur?cur+'   '+it:it;
     if(!cur||P.olc(aday,'R',8.5)<=gen)cur=aday;else{sat.push(cur);cur=it}
    });
    if(cur)sat.push(cur);
