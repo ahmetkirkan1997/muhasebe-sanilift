@@ -50,7 +50,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 th{background:#1a1a1a;color:var(--y);text-align:left;padding:10px;font-weight:600;white-space:nowrap}
 td{padding:10px;border-top:1px solid var(--line);white-space:nowrap}
 tr.tot td{background:#1a1a1a;font-weight:700}
-tr.gunb>td{border-top:2px solid #ffffff2e}
+tr.gun2>td{background:#232323}
 .r{text-align:right}
 .cari{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;transition:.15s}
 .cari:hover{border-color:var(--o)}
@@ -2101,10 +2101,11 @@ function odenmediYap(id){
   c.durum='odenmedi';c.odenmediTarih=today();save();render()});
 }
 function odenmediGeriAl(id){const c=db.cekler.find(x=>x.id===id);if(!c||c.durum!=='odenmedi')return;c.durum='bekliyor';delete c.odenmediTarih;save();render()}
-/* Aynı güne ait satırları görsel olarak gruplar: gün değişince soluk bir çizgi çizilir */
-function gunAyir(L,fn){let onc=null;return L.map(x=>{let r=fn(x);const t=String(x.tarih||'').slice(0,10);
- if(onc!==null&&t!==onc)r=/^<tr[^>]*class="/.test(r)?r.replace(/^<tr([^>]*)class="/,'<tr$1class="gunb '):r.replace(/^<tr/,'<tr class="gunb"');
- onc=t;return r}).join('')}
+/* Aynı güne ait satırlar aynı zemin renginde; her yeni günde zemin siyah ↔ gri değişir */
+function gunAyir(L,fn){let onc=null,k=0;return L.map(x=>{let r=fn(x);const t=String(x.tarih||'').slice(0,10);
+ if(onc!==null&&t!==onc)k++;onc=t;
+ if(k%2)r=/^<tr[^>]*class="/.test(r)?r.replace(/^<tr([^>]*)class="/,'<tr$1class="gun2 '):r.replace(/^<tr/,'<tr class="gun2"');
+ return r}).join('')}
 function cekSatir(c){
  const al=c.yon==='alacak',kap=c.durum==='kapandi';
  const det=['No: '+c.no,c.banka&&('Banka: '+c.banka),c.vade?'Vade: '+fd(c.vade):'',c.not,al?'Müşteriden alındı':'Firmaya verildi',c.durum==='odenmedi'?'ÖDENMEDİ (cari toplamına dahil değil)':''].filter(Boolean);
