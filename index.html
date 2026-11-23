@@ -795,7 +795,7 @@ function ekstreSatirlari(id){
  const out=[],tn={satis:'Satış',alis:'Alış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Önceki yıldan devir',devirk:'Yeni yıl carisine devir'};
  db.hareketler.filter(h=>h.cariId===id).forEach(h=>{
   const t=tot(h),p=h.tip==='alis'||h.tip==='satis';
-  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:p?h.adet+' × '+pn(h.birim)+' ₺ (KDV hariç birim fiyat)':'',alt2:p?'KDV %'+h.kdv+': '+pn(t-h.adet*h.birim)+' ₺ · KDV’siz toplam: '+pn(h.adet*h.birim)+' ₺':'',fatura:h.fatura||'',
+  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:p?(h.fiyatDahil&&h.birimDahil!=null?h.adet+' × '+pn(h.birimDahil)+' ₺ (KDV dahil, %'+h.kdv+')':h.adet+' × '+pn(h.birim)+' ₺ + KDV %'+h.kdv):'',fatura:h.fatura||'',
    borc:borcSutunu(h)?t:0,alacak:borcSutunu(h)?0:t});
  });
  db.cekler.filter(c=>c.cariId===id&&c.durum!=='odenmedi').forEach(c=>{
@@ -840,10 +840,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   P.yaz(Rr,25.5,'Dönem: '+donem,{boyut:8.5,renk:MUT,hiza:'sag'});
   if(c.yil)P.yaz(Rr,30,'Cari yılı: '+c.yil,{boyut:8.5,renk:MUT,hiza:'sag'});
   y=Math.max(yy,28)+2;P.cizgi(L,y,Rr,y,[220,220,220],0.3);y+=5;
-  const sat=[];
-  const vk=[c.vdairesi&&('Vergi Dairesi: '+c.vdairesi),c.vergi&&('Vergi No / TC: '+c.vergi)].filter(Boolean).join('     ');if(vk)sat.push(vk);
-  const ik=[c.tel&&('Tel: '+c.tel),c.eposta&&('E-posta: '+c.eposta)].filter(Boolean).join('     ');if(ik)sat.push(ik);
-  if(c.adres)P.sar('Adres: '+c.adres,'R',8.5,Rr-L-10).forEach(l=>sat.push(l));
+  const sat=P.sar([c.vdairesi&&('Vergi Dairesi: '+c.vdairesi),c.vergi&&('Vergi No / TC: '+c.vergi),c.tel&&('Tel: '+c.tel),c.eposta&&('E-posta: '+c.eposta),c.adres&&('Adres: '+c.adres)].filter(Boolean).join('    ·    '),'R',8.5,Rr-L-10).map(l=>l.replace(/^[\s·]+|[\s·]+$/g,''));
   const adL=P.sar(c.ad,'B',12,Rr-L-10),h=11+adL.length*5.4+sat.length*4.4;
   P.kutu(L,y,Rr-L,h,[246,246,246]);P.kutu(L,y,1.2,h,OR);
   P.yaz(L+5,y+4.6,'SAYIN',{boyut:7,renk:MUT});
@@ -860,7 +857,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  let sonGun=null;
  function satir(r){
   const dl=P.sar(r.ad,'R',8.5,61),fl=P.sar(r.fatura||'-','R',8.5,21);
-  const al=[r.alt,r.alt2].filter(Boolean),hh=Math.max(4.2+(dl.length-1)*4.1+al.length*3.4,4.2+(fl.length-1)*4.1)+2.4;
+  const hh=Math.max(4.2+(dl.length-1)*4.1+(r.alt?3.4:0),4.2+(fl.length-1)*4.1)+2.4;
   const yeniGun=sonGun!==null&&r.t!==sonGun;
   if(y+hh+(yeniGun?1.6:0)>272){sayfaBasla(false);tabloBasi()}
   else if(yeniGun){P.kutu(L,y,Rr-L,1.6,[238,238,238]);y+=1.6}
@@ -868,7 +865,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   const ty=y+4.2;
   P.yaz(13.5,ty,r.t?fd(r.t):'',{boyut:8.5});
   dl.forEach((l,i)=>P.yaz(32,ty+i*4.1,l,{boyut:8.5}));
-  al.forEach((l,i)=>P.yaz(32,ty+(dl.length-1)*4.1+3.4*(i+1),l,{boyut:7,renk:MUT}));
+  if(r.alt)P.yaz(32,ty+(dl.length-1)*4.1+3.4,r.alt,{boyut:7,renk:MUT});
   fl.forEach((l,i)=>P.yaz(96.5,ty+i*4.1,l,{boyut:8.5}));
   if(r.borc)P.yaz(144,ty,pn(r.borc),{boyut:8.5,hiza:'sag'});
   if(r.alacak)P.yaz(170,ty,pn(r.alacak),{boyut:8.5,hiza:'sag'});
@@ -1350,7 +1347,7 @@ function ekstreXlsx(id,bas,bit,cekGoster){
  const e=ekstreHesapla(id,bas,bit),fn=db.ayar.firma||'Firmamız',fnF=db.ayar.firma?fn+' firması':fn,F=(f,st,v)=>({f,s:st==null?2:st,v});
  const U=7,H0=U+2,sat=[];
  if(bas||e.devir)sat.push([XD(bas),'Devir (dönem başı)','','','','',XM(e.devir)]);
- e.liste.forEach(r=>sat.push([XD(r.t),r.ad,[r.alt,r.alt2].filter(Boolean).join(' · '),r.fatura||'',r.borc?XM(r.borc):'',r.alacak?XM(r.alacak):'',XM(r.bak)]));
+ e.liste.forEach(r=>sat.push([XD(r.t),r.ad,r.alt||'',r.fatura||'',r.borc?XM(r.borc):'',r.alacak?XM(r.alacak):'',XM(r.bak)]));
  const son=H0+sat.length-1,rg=col=>'$'+col+'$'+H0+':$'+col+'$'+Math.max(son,H0);
  sat.push([XT('TOPLAM'),'','','',F('SUM('+rg('E')+')',5,e.tb),F('SUM('+rg('F')+')',5,e.ta),F('E'+(son+1)+'-F'+(son+1),5,e.bakiye)]);
  const tr=H0+sat.length-1,bk=e.bakiye;
