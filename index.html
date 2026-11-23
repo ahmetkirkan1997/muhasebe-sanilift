@@ -840,7 +840,16 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   P.yaz(Rr,25.5,'Dönem: '+donem,{boyut:8.5,renk:MUT,hiza:'sag'});
   if(c.yil)P.yaz(Rr,30,'Cari yılı: '+c.yil,{boyut:8.5,renk:MUT,hiza:'sag'});
   y=Math.max(yy,28)+2;P.cizgi(L,y,Rr,y,[220,220,220],0.3);y+=5;
-  const sat=P.sar([c.vdairesi&&('Vergi Dairesi: '+c.vdairesi),c.vergi&&('Vergi No / TC: '+c.vergi),c.tel&&('Tel: '+c.tel),c.eposta&&('E-posta: '+c.eposta),c.adres&&('Adres: '+c.adres)].filter(Boolean).join('    ·    '),'R',8.5,Rr-L-10).map(l=>l.replace(/^[\s·]+|[\s·]+$/g,''));
+  const sat=[];{
+   const gen=Rr-L-10,ogeler=[c.vdairesi&&('Vergi Dairesi: '+c.vdairesi),c.vergi&&('Vergi No / TC: '+c.vergi),c.tel&&('Tel: '+c.tel),c.eposta&&('E-posta: '+c.eposta),c.adres&&('Adres: '+c.adres)].filter(Boolean).map(t=>'· '+t);
+   let cur='';
+   ogeler.forEach(it=>{
+    if(P.olc(it,'R',8.5)>gen){if(cur){sat.push(cur);cur=''}P.sar(it,'R',8.5,gen).forEach(l=>sat.push(l));return}
+    const aday=cur?cur+'      '+it:it;
+    if(!cur||P.olc(aday,'R',8.5)<=gen)cur=aday;else{sat.push(cur);cur=it}
+   });
+   if(cur)sat.push(cur);
+  }
   const adL=P.sar(c.ad,'B',12,Rr-L-10),h=11+adL.length*5.4+sat.length*4.4;
   P.kutu(L,y,Rr-L,h,[246,246,246]);P.kutu(L,y,1.2,h,OR);
   P.yaz(L+5,y+4.6,'SAYIN',{boyut:7,renk:MUT});
