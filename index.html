@@ -300,6 +300,8 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
+const SURUM='1.1',SURUM_TARIH='23.11.2026';
+function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
  const env=kayitliZarf(),bozuk=!env&&!!lsGet(KEY2),kurulum=!env&&!bozuk;
@@ -311,7 +313,7 @@ function girisGoster(mesaj){
  ${kurulum?'<label for="g_s2">Şifre (tekrar)</label><input id="g_s2" type="password" autocomplete="new-password"><p style="color:var(--mut);font-size:12px;margin-top:6px;line-height:1.5">En az 8 karakter. Şifreyi unutursanız verilere erişilemez, kurtarma yolu yoktur. Uzun ve tahmin edilmesi zor bir şifre seçin.</p>':''}
  <p id="g_e" style="color:var(--red);font-size:13px;margin-top:8px;min-height:18px">${esc(mesaj||'')}</p>
  <button class="btn" id="g_btn" style="width:100%;margin-top:4px" onclick="${kurulum?'kurulumYap()':'girisYap()'}">${kurulum?'Yöneticiyi Oluştur ve Başla':'Giriş Yap'}</button>`}
- <span class="btn ghost dosyabtn" style="width:100%;margin-top:10px;text-align:center">📂 Şifreli yedek dosyasından yükle<input id="g_dosya" type="file" onchange="girisDosya(this)"></span></div>`;
+ <span class="btn ghost dosyabtn" style="width:100%;margin-top:10px;text-align:center">📂 Şifreli yedek dosyasından yükle<input id="g_dosya" type="file" onchange="girisDosya(this)"></span><p style="color:var(--mut);font-size:11px;text-align:center;margin-top:12px">${surumEtiket()}</p></div>`;
  k.querySelectorAll('img.lg').forEach(i=>i.src=LOGO_SRC);
  k.onkeydown=e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'&&e.target.type!=='file'){e.preventDefault();kurulum?kurulumYap():girisYap()}};
  const a=$('#g_ad');if(a&&!navigator.userAgent.includes('Headless'))a.focus();
@@ -636,7 +638,7 @@ function firmaSatirlari(a){a=a||db.ayar;return [[a.vdairesi&&('Vergi Dairesi: '+
 function firmaKaydet(){db.ayar={...db.ayar,firma:$('#s_firma').value.trim(),vdairesi:$('#s_vd').value.trim(),vergi:$('#s_vno').value.trim(),tel:$('#s_tel').value.trim(),eposta:$('#s_eposta').value.trim(),adres:$('#s_adres').value.trim(),kdv:parseFloat($('#s_kdv').value)||0};save();toast('Kaydedildi ✓')}
 function pgAyarlar(){
  const a=db.ayar,s=lsGet(BKEY),onc=lsGet(PKEY);
- return `<div class="top"><h2>⚙️ Ayarlar</h2></div>
+ return `<div class="top"><h2>⚙️ Ayarlar</h2><span style="color:var(--mut);font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 10px">${surumEtiket()}</span></div>
  ${pgHesap()}
  <div class="card" style="margin-bottom:12px"><h3>💾 Verileri Kaydet</h3><p style="color:var(--mut);font-size:13px;margin:6px 0 12px;line-height:1.5">Tüm verilerinizi bir yedek dosyası (.json) olarak kaydedin. Tarayıcınız destekliyorsa kaydedilecek klasörü seçtiren pencere açılır; yoksa dosya İndirilenler klasörüne iner. Konumu her seferinde seçmek için Chrome > Ayarlar > İndirilenler bölümünde "İndirmeden önce nereye kaydedileceğini sor" seçeneğini açın. Dosya kaydedilemezse metin olarak kopyalayabilirsiniz.</p><label for="y_mail" style="display:block;margin:0 0 4px;font-size:13px">Yedeğin gönderileceği e-posta adresi</label><input id="y_mail" type="email" inputmode="email" autocomplete="off" placeholder="ornek@gmail.com" value="${esc((db.ayar&&db.ayar.yedekMail)||'')}" onchange="yedekMailKaydet(this.value)" style="width:100%;margin-bottom:10px"><div class="row"><button class="btn" onclick="farkliKaydet()">💾 Farklı Kaydet…</button><button class="btn" onclick="yedekMaille()">📧 E-postayla Gönder</button><button class="btn ghost" onclick="metinGoster()">📋 Metin olarak kopyala</button></div><p style="color:var(--mut);font-size:12px;margin-top:10px">Son yedek: ${s?esc(new Date(s).toLocaleString('tr-TR')):'henüz alınmadı'}</p></div>
  ${yonetici()?`<div class="card" style="margin-bottom:12px"><h3>📊 Tüm Veriyi Excel’e Aktar</h3><p style="color:var(--mut);font-size:13px;margin:6px 0 12px;line-height:1.5">Programdaki güncel tüm kayıtları tek Excel dosyasında alın: Özet, Cariler listesi, tek sayfada Çekler ve Senetler (çekler, senetler, ciro edilen çekler, ciro edilen senetler ayrı başlıklarda), her şirket için ayrı cari sayfası (hareketler ve çek/senetler dahil), Hazine, Giderler, KDV, Teklifler ve Notlar. Bakiyeler, çek vadeleri, nakit ve KDV Excel formülleriyle hesaplanır; satır ekleyip değiştirirseniz sonuçlar kendiliğinden güncellenir. Dosya şifresizdir, güvenli yerde saklayın.</p><button class="btn" onclick="tumVeriExcel()">📊 Excel Olarak Kaydet</button></div>`:''}
