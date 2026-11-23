@@ -50,7 +50,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 th{background:#1a1a1a;color:var(--y);text-align:left;padding:10px;font-weight:600;white-space:nowrap}
 td{padding:10px;border-top:1px solid var(--line);white-space:nowrap}
 tr.tot td{background:#1a1a1a;font-weight:700}
-tr.gunbos>td{height:14px;padding:0;border:0;background:transparent}
+tr.gunbos>td{height:12px;padding:0;border:0;background:#1a1a1a}
 .r{text-align:right}
 .cari{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;transition:.15s}
 .cari:hover{border-color:var(--o)}
@@ -863,7 +863,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   const hh=Math.max(4.2+(dl.length-1)*4.1+(r.alt?3.4:0),4.2+(fl.length-1)*4.1)+2.4;
   const yeniGun=sonGun!==null&&r.t!==sonGun;
   if(y+hh+(yeniGun?4:0)>272){sayfaBasla(false);tabloBasi()}
-  else if(yeniGun)y+=4;
+  else if(yeniGun){P.kutu(L,y,Rr-L,4,[238,238,238]);y+=4}
   sonGun=r.t;
   const ty=y+4.2;
   P.yaz(13.5,ty,r.t?fd(r.t):'',{boyut:8.5});
