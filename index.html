@@ -942,18 +942,17 @@ function ekstreForm(id){
  m.innerHTML='<div class="box"><h3>📄 Cari Ekstresi (PDF)</h3><p style="color:var(--mut);font-size:13px;margin:8px 0;line-height:1.5"><b style="color:var(--tx)">'+esc(c.ad)+'</b> için müşteriye sunabileceğiniz hesap ekstresi hazırlanır. Tarih aralığı boş bırakılırsa tüm hareketler yer alır.</p>'
   +'<label for="e_bas">Başlangıç tarihi (isteğe bağlı)</label><input id="e_bas" type="date">'
   +'<label for="e_bit">Bitiş tarihi (isteğe bağlı)</label><input id="e_bit" type="date">'
-  +'<label for="e_cek" style="display:flex;gap:10px;align-items:center;margin-top:14px;font-size:13px;color:var(--tx)"><input id="e_cek" type="checkbox" checked style="width:auto"> Bekleyen çek/senetleri de göster</label>'
   +'<div class="row end"><button class="btn ghost" id="e_v">Vazgeç</button><button class="btn ghost" id="e_x">📊 Excel</button><button class="btn" id="e_o">📄 PDF Oluştur</button></div></div>';
  m.classList.add('open');
  $('#e_v').onclick=closeM;
  $('#e_x').onclick=async()=>{
-  const bas=$('#e_bas').value,bit=$('#e_bit').value,cek=$('#e_cek').checked;
+  const bas=$('#e_bas').value,bit=$('#e_bit').value,cek=false;
   if(bas&&bit&&bas>bit){toast('Başlangıç tarihi bitiş tarihinden sonra olamaz');return}
   try{const ad='cari-ekstre-'+dosyaAdi(c.ad)+(c.yil?'-'+c.yil:'')+'-'+today()+'.xlsx';const r=await dosyaKaydet(ekstreXlsx(id,bas,bit,cek),ad);closeM();toast(r==='ok'?'Excel kaydedildi: '+ad:r==='iptal'?'Kaydetme iptal edildi':'⚠️ Excel kaydedilemedi',5000)}
   catch(e){toast('Excel oluşturulamadı: '+(e&&e.message||e),5000)}
  };
  $('#e_o').onclick=async()=>{
-  const bas=$('#e_bas').value,bit=$('#e_bit').value,cek=$('#e_cek').checked;
+  const bas=$('#e_bas').value,bit=$('#e_bit').value,cek=false;
   if(bas&&bit&&bas>bit){toast('Başlangıç tarihi bitiş tarihinden sonra olamaz');return}
   const btn=$('#e_o');btn.disabled=true;btn.textContent='Hazırlanıyor…';
   try{
