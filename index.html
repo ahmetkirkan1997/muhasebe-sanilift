@@ -847,7 +847,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  const bakT=v=>'₺'+pn(Math.abs(v))+(v>0.004?' (B)':v<-0.004?' (A)':'');
  const bakS=v=>pn(Math.abs(v))+(v>0.004?' (B)':v<-0.004?' (A)':'');
  function sayfaBasla(ilk){
-  P.yeni();P.kutu(0,0,PW,3,OR);
+  P.yeni();if(ilk)P.kutu(0,0,PW,3,OR);
   if(!ilk){P.yaz(L,12,firma+'  ·  Cari Hesap Ekstresi  ·  '+c.ad,{boyut:8,renk:MUT});y=18;return}
   let fy=15,ty=20;
   if(LG){const lw=42,lh=lw*LG.h/LG.w;P.resim(L,7,lw,lh);fy=7+lh+6.5;ty=fy+5}
