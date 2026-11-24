@@ -868,16 +868,16 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  }
  function tabloBasi(){
   P.kutu(L,y,Rr-L,7,DARK);const ty=y+4.8,o={f:'B',boyut:8,renk:YEL};
-  const sg=Object.assign({hiza:'sag'},o);
+  const sg=Object.assign({hiza:'sag'},o),kdvBas=(()=>{const o2=[...new Set(E.liste.filter(r=>r.oran!=null).map(r=>+r.oran))].sort((a,b)=>a-b);return !o2.length?'KDV':o2.length>2?'KDV (karma)':'KDV '+o2.map(v=>'%'+String(v).replace('.',',')).join('/')})();
   P.yaz(13,ty,'Tarih',o);P.yaz(33,ty,'Açıklama',o);P.yaz(108,ty,'Fatura No',o);
-  P.yaz(144,ty,'Adet',sg);P.yaz(165,ty,'Birim Fiyat',sg);P.yaz(189,ty,"KDV'siz",sg);P.yaz(212,ty,'KDV',sg);
+  P.yaz(144,ty,'Adet',sg);P.yaz(165,ty,'Birim Fiyat',sg);P.yaz(189,ty,"KDV'siz",sg);P.yaz(212,ty,kdvBas,sg);
   P.yaz(235,ty,'Borç (₺)',sg);P.yaz(253,ty,'Alacak (₺)',sg);P.yaz(Rr,ty,'Bakiye (₺)',sg);
   y+=7;
  }
  let sonGun=null;
  function satir(r){
   const dl=P.sar(r.ad,'R',8.5,72),fl=P.sar(r.fatura||'-','R',8.5,30),kvl=r.oran!=null;
-  const hh=Math.max(4.2+(dl.length-1)*4.1+(r.alt?3.4:0),4.2+(fl.length-1)*4.1,kvl?7.6:0)+2.4;
+  const hh=Math.max(4.2+(dl.length-1)*4.1+(r.alt?3.4:0),4.2+(fl.length-1)*4.1)+2.4;
   const yeniGun=sonGun!==null&&r.t!==sonGun;
   if(y+hh+(yeniGun?0.8:0)>PH-25){sayfaBasla(false);tabloBasi()}
   else if(yeniGun){P.kutu(L,y,Rr-L,0.8,[238,238,238]);y+=0.8}
@@ -887,7 +887,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   dl.forEach((l,i)=>P.yaz(33,ty+i*4.1,l,{boyut:8.5}));
   if(r.alt)P.yaz(33,ty+(dl.length-1)*4.1+3.4,r.alt,{boyut:7,renk:MUT});
   fl.forEach((l,i)=>P.yaz(108,ty+i*4.1,l,{boyut:8.5}));
-  if(kvl){P.yaz(144,ty,String(r.adet).replace('.',','),n8);P.yaz(165,ty,pn(r.birim),n8);P.yaz(189,ty,pn(r.ara),n8);P.yaz(212,ty,pn(r.kv),n8);P.yaz(212,ty+3.3,'%'+String(r.oran).replace('.',','),{boyut:6.5,renk:MUT,hiza:'sag'})}
+  if(kvl){P.yaz(144,ty,String(r.adet).replace('.',','),n8);P.yaz(165,ty,pn(r.birim),n8);P.yaz(189,ty,pn(r.ara),n8);P.yaz(212,ty,pn(r.kv),n8)}
   if(r.borc)P.yaz(235,ty,pn(r.borc),n8);
   if(r.alacak)P.yaz(253,ty,pn(r.alacak),n8);
   P.yaz(Rr,ty,bakS(r.bak),{f:'B',boyut:8.5,hiza:'sag'});
