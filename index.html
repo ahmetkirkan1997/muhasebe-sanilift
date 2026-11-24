@@ -725,8 +725,8 @@ function logoHazirla(){
  }catch(e){return null}})();
  return logoSoz;
 }
-function pdfYazici(R,B,LG){
- const W=595.28,H=841.89,F={R:R,B:B},sayfalar=[];let ak=null,kullanildi=false;
+function pdfYazici(R,B,LG,yatay){
+ const W=yatay?841.89:595.28,H=yatay?595.28:841.89,F={R:R,B:B},sayfalar=[];let ak=null,kullanildi=false;
  const q=v=>(Math.round(v*100)/100).toString();
  const rg=c=>c.map(v=>(v/255).toFixed(3)).join(' ');
  const enc=new TextEncoder();
@@ -813,7 +813,7 @@ function ekstreSatirlari(id){
  const out=[],tn={satis:'Satış',alis:'Alış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Önceki yıldan devir',devirk:'Yeni yıl carisine devir'};
  db.hareketler.filter(h=>h.cariId===id).forEach(h=>{
   const t=tot(h),p=h.tip==='alis'||h.tip==='satis';
-  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:p?h.adet+' × '+'₺'+pn(h.fiyatDahil&&h.birimDahil!=null?h.birimDahil:h.birim*(1+(+h.kdv||0)/100))+' (KDV dahil, %'+h.kdv+')':'',fatura:h.fatura||'',
+  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:'',adet:p?h.adet:null,birim:p?h.birim:null,ara:p?yuvarla(h.adet*h.birim):null,kv:p?yuvarla(t-h.adet*h.birim):null,oran:p?h.kdv:null,fatura:h.fatura||'',
    borc:borcSutunu(h)?t:0,alacak:borcSutunu(h)?0:t});
  });
  db.cekler.filter(c=>c.cariId===id&&c.durum!=='odenmedi').forEach(c=>{
@@ -839,15 +839,15 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  if(!window.__FR||!window.__FB)throw new Error('Yazı tipi yüklenemedi');
  const E=ekstreHesapla(id,bas,bit);
  const LG=await logoHazirla();
- const P=pdfYazici(new Yazi(b64bytes(window.__FR)),new Yazi(b64bytes(window.__FB)),LG);
- const L=12,Rr=198,DARK=[17,17,17],MUT=[110,110,110],OR=[255,122,0],YEL=[255,196,0];
+ const P=pdfYazici(new Yazi(b64bytes(window.__FR)),new Yazi(b64bytes(window.__FB)),LG,true);
+ const L=12,PW=297,PH=210,Rr=285,DARK=[17,17,17],MUT=[110,110,110],OR=[255,122,0],YEL=[255,196,0];
  const firma=db.ayar.firma||'Firma Adınız',bugun=fd(today());
  const donem=(bas||bit)?((bas?fd(bas):'başlangıç')+' – '+(bit?fd(bit):bugun)):'Tüm hareketler';
  let y=0;
  const bakT=v=>'₺'+pn(Math.abs(v))+(v>0.004?' (B)':v<-0.004?' (A)':'');
  const bakS=v=>pn(Math.abs(v))+(v>0.004?' (B)':v<-0.004?' (A)':'');
  function sayfaBasla(ilk){
-  P.yeni();P.kutu(0,0,210,3,OR);
+  P.yeni();P.kutu(0,0,PW,3,OR);
   if(!ilk){P.yaz(L,12,firma+'  ·  Cari Hesap Ekstresi  ·  '+c.ad,{boyut:8,renk:MUT});y=18;return}
   let fy=15,ty=20;
   if(LG){const lw=42,lh=lw*LG.h/LG.w;P.resim(L,7,lw,lh);fy=7+lh+6.5;ty=fy+5}
@@ -868,26 +868,29 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  }
  function tabloBasi(){
   P.kutu(L,y,Rr-L,7,DARK);const ty=y+4.8,o={f:'B',boyut:8,renk:YEL};
-  P.yaz(13.5,ty,'Tarih',o);P.yaz(32,ty,'Açıklama',o);P.yaz(96.5,ty,'Fatura No',o);
-  P.yaz(144,ty,'Borç (₺)',Object.assign({hiza:'sag'},o));P.yaz(170,ty,'Alacak (₺)',Object.assign({hiza:'sag'},o));P.yaz(196.5,ty,'Bakiye (₺)',Object.assign({hiza:'sag'},o));
+  const sg=Object.assign({hiza:'sag'},o);
+  P.yaz(13,ty,'Tarih',o);P.yaz(33,ty,'Açıklama',o);P.yaz(108,ty,'Fatura No',o);
+  P.yaz(144,ty,'Adet',sg);P.yaz(165,ty,'Birim Fiyat',sg);P.yaz(189,ty,"KDV'siz",sg);P.yaz(212,ty,'KDV',sg);
+  P.yaz(235,ty,'Borç (₺)',sg);P.yaz(253,ty,'Alacak (₺)',sg);P.yaz(Rr,ty,'Bakiye (₺)',sg);
   y+=7;
  }
  let sonGun=null;
  function satir(r){
-  const dl=P.sar(r.ad,'R',8.5,61),fl=P.sar(r.fatura||'-','R',8.5,21);
-  const hh=Math.max(4.2+(dl.length-1)*4.1+(r.alt?3.4:0),4.2+(fl.length-1)*4.1)+2.4;
+  const dl=P.sar(r.ad,'R',8.5,72),fl=P.sar(r.fatura||'-','R',8.5,30),kvl=r.oran!=null;
+  const hh=Math.max(4.2+(dl.length-1)*4.1+(r.alt?3.4:0),4.2+(fl.length-1)*4.1,kvl?7.6:0)+2.4;
   const yeniGun=sonGun!==null&&r.t!==sonGun;
-  if(y+hh+(yeniGun?1.6:0)>272){sayfaBasla(false);tabloBasi()}
-  else if(yeniGun){P.kutu(L,y,Rr-L,1.6,[238,238,238]);y+=1.6}
+  if(y+hh+(yeniGun?0.8:0)>PH-25){sayfaBasla(false);tabloBasi()}
+  else if(yeniGun){P.kutu(L,y,Rr-L,0.8,[238,238,238]);y+=0.8}
   sonGun=r.t;
-  const ty=y+4.2;
-  P.yaz(13.5,ty,r.t?fd(r.t):'',{boyut:8.5});
-  dl.forEach((l,i)=>P.yaz(32,ty+i*4.1,l,{boyut:8.5}));
-  if(r.alt)P.yaz(32,ty+(dl.length-1)*4.1+3.4,r.alt,{boyut:7,renk:MUT});
-  fl.forEach((l,i)=>P.yaz(96.5,ty+i*4.1,l,{boyut:8.5}));
-  if(r.borc)P.yaz(144,ty,pn(r.borc),{boyut:8.5,hiza:'sag'});
-  if(r.alacak)P.yaz(170,ty,pn(r.alacak),{boyut:8.5,hiza:'sag'});
-  P.yaz(196.5,ty,bakS(r.bak),{f:'B',boyut:8.5,hiza:'sag'});
+  const ty=y+4.2,n8={boyut:8.5,hiza:'sag'};
+  P.yaz(13,ty,r.t?fd(r.t):'',{boyut:8.5});
+  dl.forEach((l,i)=>P.yaz(33,ty+i*4.1,l,{boyut:8.5}));
+  if(r.alt)P.yaz(33,ty+(dl.length-1)*4.1+3.4,r.alt,{boyut:7,renk:MUT});
+  fl.forEach((l,i)=>P.yaz(108,ty+i*4.1,l,{boyut:8.5}));
+  if(kvl){P.yaz(144,ty,String(r.adet).replace('.',','),n8);P.yaz(165,ty,pn(r.birim),n8);P.yaz(189,ty,pn(r.ara),n8);P.yaz(212,ty,pn(r.kv),n8);P.yaz(212,ty+3.3,'%'+String(r.oran).replace('.',','),{boyut:6.5,renk:MUT,hiza:'sag'})}
+  if(r.borc)P.yaz(235,ty,pn(r.borc),n8);
+  if(r.alacak)P.yaz(253,ty,pn(r.alacak),n8);
+  P.yaz(Rr,ty,bakS(r.bak),{f:'B',boyut:8.5,hiza:'sag'});
   y+=hh;P.cizgi(L,y,Rr,y,[232,232,232],0.15);
  }
  sayfaBasla(true);tabloBasi();
@@ -900,8 +903,8 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  const dl=P.sar(durum,'R',9,Rr-L-4),not=P.sar('(B) Borç bakiyesi: tutar firmamıza ödenecektir.   (A) Alacak bakiyesi: tutar firmamız tarafından ödenecektir.   Tüm tutarlar KDV dahildir.','R',7.5,Rr-L);
  const ozs=[];if(bas&&Math.abs(E.devir)>0.004)ozs.push(['Devir bakiyesi',bakT(E.devir)]);ozs.push(['Toplam Borç','₺'+pn(E.tb)],['Toplam Alacak','₺'+pn(E.ta)]);
  const ih=ozs.length*5.2+24+dl.length*4.4+not.length*3.6;
- if(y+8+ih>272)sayfaBasla(false);
- y+=6;const bx=118;let yy=y;
+ if(y+8+ih>PH-25)sayfaBasla(false);
+ y+=6;const bx=Rr-80;let yy=y;
  ozs.forEach(a=>{P.yaz(bx,yy+4,a[0],{boyut:8.5,renk:MUT});P.yaz(Rr-1.5,yy+4,a[1],{boyut:8.5,hiza:'sag'});yy+=5.2});
  P.cizgi(bx,yy+0.8,Rr,yy+0.8,DARK,0.4);yy+=2.5;
  P.kutu(bx,yy,Rr-bx,9.5,[255,243,222]);
@@ -914,23 +917,23 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  /* bekleyen çek/senet */
  const bek=cekGoster?db.cekler.filter(x=>x.cariId===id&&x.durum==='bekliyor').sort((a,b)=>String(a.vade||'9').localeCompare(String(b.vade||'9'))):[];
  if(bek.length){
-  if(y+22>272){sayfaBasla(false)}
+  if(y+22>PH-25){sayfaBasla(false)}
   y+=4;P.yaz(L,y,'Bekleyen Çek / Senetler',{f:'B',boyut:10});P.yaz(L,y+4.4,'Bakiyeye dahildir; vadesi gelmemiş veya henüz tahsil/ödeme yapılmamış kayıtlardır.',{boyut:7.5,renk:MUT});y+=7;
   P.kutu(L,y,Rr-L,6.5,DARK);const ty=y+4.5,o={f:'B',boyut:8,renk:YEL};
-  P.yaz(13.5,ty,'Tür',o);P.yaz(32,ty,'No',o);P.yaz(78,ty,'Yön',o);P.yaz(112,ty,'Alındı / Verildi',o);P.yaz(144,ty,'Vade',o);P.yaz(196.5,ty,'Tutar (₺)',Object.assign({hiza:'sag'},o));y+=6.5;
+  P.yaz(13.5,ty,'Tür',o);P.yaz(33,ty,'No',o);P.yaz(108,ty,'Yön',o);P.yaz(150,ty,'Alındı / Verildi',o);P.yaz(200,ty,'Vade',o);P.yaz(Rr-1.5,ty,'Tutar (₺)',Object.assign({hiza:'sag'},o));y+=6.5;
   bek.forEach((x,i)=>{
-   if(y+7>272){sayfaBasla(false)}
+   if(y+7>PH-25){sayfaBasla(false)}
    if(i%2)P.kutu(L,y,Rr-L,6.5,[250,250,250]);const t2=y+4.4;
-   P.yaz(13.5,t2,x.tur==='cek'?'Çek':'Senet',{boyut:8.5});P.yaz(32,t2,P.sar(x.no,'R',8.5,42)[0]||'',{boyut:8.5});
-   P.yaz(78,t2,x.yon==='alacak'?'Alınan':'Verilen',{boyut:8.5});P.yaz(112,t2,fd(x.tarih),{boyut:8.5});P.yaz(144,t2,x.vade?fd(x.vade):'-',{boyut:8.5});
-   P.yaz(196.5,t2,pn(x.tutar),{f:'B',boyut:8.5,hiza:'sag'});y+=6.5;P.cizgi(L,y,Rr,y,[232,232,232],0.15);
+   P.yaz(13.5,t2,x.tur==='cek'?'Çek':'Senet',{boyut:8.5});P.yaz(33,t2,P.sar(x.no,'R',8.5,70)[0]||'',{boyut:8.5});
+   P.yaz(108,t2,x.yon==='alacak'?'Alınan':'Verilen',{boyut:8.5});P.yaz(150,t2,fd(x.tarih),{boyut:8.5});P.yaz(200,t2,x.vade?fd(x.vade):'-',{boyut:8.5});
+   P.yaz(Rr-1.5,t2,pn(x.tutar),{f:'B',boyut:8.5,hiza:'sag'});y+=6.5;P.cizgi(L,y,Rr,y,[232,232,232],0.15);
   });
  }
  /* alt bilgi */
  const n=P.adet();
- for(let i=0;i<n;i++){P.sayfa(i);P.cizgi(L,284,Rr,284,[220,220,220],0.2);
-  P.yaz(L,289,firma+'  ·  '+c.ad+'  ·  Cari Hesap Ekstresi',{boyut:7.5,renk:MUT});
-  P.yaz(Rr,289,'Sayfa '+(i+1)+' / '+n,{boyut:7.5,renk:MUT,hiza:'sag'});}
+ for(let i=0;i<n;i++){P.sayfa(i);P.cizgi(L,PH-13,Rr,PH-13,[220,220,220],0.2);
+  P.yaz(L,PH-8,firma+'  ·  '+c.ad+'  ·  Cari Hesap Ekstresi',{boyut:7.5,renk:MUT});
+  P.yaz(Rr,PH-8,'Sayfa '+(i+1)+' / '+n,{boyut:7.5,renk:MUT,hiza:'sag'});}
  return P.bitir('Cari Ekstre - '+c.ad);
 }
 function ekstreForm(id){
@@ -1365,7 +1368,7 @@ function ekstreXlsx(id,bas,bit,cekGoster){
  const e=ekstreHesapla(id,bas,bit),fn=db.ayar.firma||'Firmamız',fnF=db.ayar.firma?fn+' firması':fn,F=(f,st,v)=>({f,s:st==null?2:st,v});
  const U=7,H0=U+2,sat=[];
  if(bas||e.devir)sat.push([XD(bas),'Devir (dönem başı)','','','','',XM(e.devir)]);
- e.liste.forEach(r=>sat.push([XD(r.t),r.ad,r.alt||'',r.fatura||'',r.borc?XM(r.borc):'',r.alacak?XM(r.alacak):'',XM(r.bak)]));
+ e.liste.forEach(r=>sat.push([XD(r.t),r.ad,r.alt||(r.oran!=null?r.adet+' × ₺'+pn(r.birim)+' (KDV hariç) · KDV %'+r.oran+': ₺'+pn(r.kv)+' · KDV’siz toplam: ₺'+pn(r.ara):''),r.fatura||'',r.borc?XM(r.borc):'',r.alacak?XM(r.alacak):'',XM(r.bak)]));
  const son=H0+sat.length-1,rg=col=>'$'+col+'$'+H0+':$'+col+'$'+Math.max(son,H0);
  sat.push([XT('TOPLAM'),'','','',F('SUM('+rg('E')+')',5,e.tb),F('SUM('+rg('F')+')',5,e.ta),F('E'+(son+1)+'-F'+(son+1),5,e.bakiye)]);
  const tr=H0+sat.length-1,bk=e.bakiye;
