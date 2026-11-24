@@ -813,7 +813,7 @@ function ekstreSatirlari(id){
  const out=[],tn={satis:'Satış',alis:'Alış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Önceki yıldan devir',devirk:'Yeni yıl carisine devir'};
  db.hareketler.filter(h=>h.cariId===id).forEach(h=>{
   const t=tot(h),p=h.tip==='alis'||h.tip==='satis';
-  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:'',adet:p?h.adet:null,birim:p?h.birim:null,ara:p?yuvarla(h.adet*h.birim):null,kv:p?yuvarla(t-h.adet*h.birim):null,oran:p?h.kdv:null,fatura:h.fatura||'',
+  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:'',adet:p?h.adet:null,birim:p?h.birim:null,ara:p?yuvarla(h.adet*h.birim):null,kv:p?yuvarla(t-yuvarla(h.adet*h.birim)):null,oran:p?h.kdv:null,fatura:h.fatura||'',
    borc:borcSutunu(h)?t:0,alacak:borcSutunu(h)?0:t});
  });
  db.cekler.filter(c=>c.cariId===id&&c.durum!=='odenmedi').forEach(c=>{
@@ -2396,8 +2396,8 @@ function pgTeklif(){
  ${db.teklifler.length?`<div class="tw"><table><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th class="r">Toplam</th><th></th></tr>${db.teklifler.slice().reverse().map(t=>`<tr data-rid="${t.id}"><td>${esc(t.no)}</td><td>${fd(t.tarih)}</td><td>${esc(t.musteri)}</td><td class="r"><b>${fmt(tkTop(t).g)}</b></td><td><button class="btn sm" onclick="tkAc('${t.id}')">Aç</button> <button class="btn ghost sm" onclick="tkPdfId('${t.id}')">PDF</button> <button class="btn dng sm" onclick="confirmDel('Teklif silinsin mi?',()=>db.teklifler=db.teklifler.filter(x=>x.id!=='${t.id}'))">✕</button></td></tr>`).join('')}</table></div>`:'<div class="empty">Kayıtlı teklif yok.</div>'}`;
 }
 function tkSatir(i,t){const o=+t.kdv||0,top=i.adet*i.birim;
- if(t.dahil){const ara=top/(1+o/100);return{haric:i.birim/(1+o/100),ara,kdv:top-ara,tutar:top}}
- return{haric:i.birim,ara:top,kdv:top*o/100,tutar:top*(1+o/100)}}
+ if(t.dahil){const tutar=yuvarla(top),ara=yuvarla(top/(1+o/100));return{haric:i.birim/(1+o/100),ara,kdv:yuvarla(tutar-ara),tutar}}
+ const ara=yuvarla(top),kdv=yuvarla(top*o/100);return{haric:i.birim,ara,kdv,tutar:yuvarla(ara+kdv)}}
 function tkTop(t){const s=t.items.reduce((x,i)=>x+i.adet*i.birim,0);if(t.dahil){const g=s,a=g/(1+t.kdv/100);return{a,k:g-a,g}}const k=s*t.kdv/100;return{a:s,k,g:s+k}}
 function musteriSatirlari(t){const m=t.mb||{};return [[m.vdairesi&&('Vergi Dairesi: '+m.vdairesi),m.vergi&&('Vergi No / TC: '+m.vergi)].filter(Boolean).join('   '),[m.tel&&('Tel: '+m.tel),m.eposta&&('E-posta: '+m.eposta)].filter(Boolean).join('   '),m.adres&&('Adres: '+m.adres)].filter(Boolean)}
 function initTeklif(){
