@@ -868,7 +868,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
  }
  function tabloBasi(){
   P.kutu(L,y,Rr-L,7,DARK);const ty=y+4.8,o={f:'B',boyut:8,renk:YEL};
-  const sg=Object.assign({hiza:'sag'},o),kdvBas=(()=>{const o2=[...new Set(E.liste.filter(r=>r.oran!=null).map(r=>+r.oran))].sort((a,b)=>a-b);return !o2.length?'KDV':o2.length>2?'KDV (karma)':'KDV '+o2.map(v=>'%'+String(v).replace('.',',')).join('/')})();
+  const sg=Object.assign({hiza:'sag'},o),kdvBas=db.ayar.kdv!=null&&db.ayar.kdv!==''?'KDV %'+String(db.ayar.kdv).replace('.',','):'KDV';
   P.yaz(13,ty,'Tarih',o);P.yaz(33,ty,'Açıklama',o);P.yaz(108,ty,'Fatura No',o);
   P.yaz(144,ty,'Adet',sg);P.yaz(165,ty,'Birim Fiyat',sg);P.yaz(189,ty,"KDV'siz",sg);P.yaz(212,ty,kdvBas,sg);
   P.yaz(235,ty,'Borç (₺)',sg);P.yaz(253,ty,'Alacak (₺)',sg);P.yaz(Rr,ty,'Bakiye (₺)',sg);
