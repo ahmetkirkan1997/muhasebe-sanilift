@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.3.1',SURUM_TARIH='26.11.2026';
+const SURUM='1.3.2',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -1049,6 +1049,7 @@ function topluEkstreForm(){
 function hazineDefter(){
  const b=today(),L=[];
  const parcala=(r,tutar,yon,tur,ad,ek)=>{
+  if(r.karsiBanka)ad=[ad,'Karşı banka: '+r.karsiBanka].filter(Boolean).join(' · ');
   const base=Object.assign({yon,tur,hesap:hesapOf(r),bankaId:hesapOf(r)==='banka'?(r.bankaId||''):'',yontem:yontemOf(r),kart:r.kart||'',cariId:r.cariId||'',kisi:r.kisi||'',virman:!!r.virman,id:r.id},ek||{});
   if(r.taksit&&r.taksit.n>1){taksitPlan(tutar,r.taksit,r.tarih).forEach((p,i,a)=>{if(p.t<=b)L.push(Object.assign({},base,{t:p.t,tutar:p.tutar,ad:ad,taksit:(i+1)+'/'+a.length}))})}
   else L.push(Object.assign({},base,{t:r.tarih,tutar,ad,taksit:''}));
@@ -2198,6 +2199,7 @@ function hareketEkle(cariId,tip,d){
    {name:'tutar',label:'Tutar (₺)',type:'number',req:1,step:'0.01',value:d?tot(d):''},
    {name:'odeme',label:tip==='odeme'?'Nasıl ödendi?':'Nasıl tahsil edildi?',type:'select',value:d?d.odeme||'nakit':'nakit',options:[['nakit','Nakit (kasa)'],['havale','Banka havalesi / EFT (banka)'],['kart','Kredi kartı (banka)']]},
    ...bankaSecAlan(d,'Hangi banka hesabı? (havale / kredi kartı için)'),
+   {name:'karsiBanka',label:'Karşı tarafın bankası — havale için elle yazın (isteğe bağlı)',value:d?d.karsiBanka||'':''},
    {name:'kart',label:'Kart / POS adı (kart numarası girmeyin)',value:d?d.kart||'':''},
    {name:'taksit',label:'Taksit (yalnızca kredi kartı için)',type:'select',value:d&&d.taksit?String(d.taksit.n):'1',options:taksitSecenek},
    {name:'ilk',label:'İlk taksit tarihi (boşsa 1 ay sonra)',type:'date',value:d&&d.taksit?d.taksit.ilk:''},
@@ -2207,7 +2209,7 @@ function hareketEkle(cariId,tip,d){
    if(!(o.tutar>0))throw new Error('Tutar sıfırdan büyük olmalı');
    if(/\d{12,19}/.test(String(o.kart||'').replace(/[\s-]/g,'')+' '+String(o.aciklama||'').replace(/[\s-]/g,'')))throw new Error('Kart numarası girmeyin; yalnızca kart/banka adı yazın');
    const h={id:d?d.id:uid(),cariId,tip,tarih:o.tarih,tutar:o.tutar,fatura:o.fatura||'',aciklama:o.aciklama||'',odeme:o.odeme||'nakit'};
-   if(o.kart)h.kart=o.kart;if((o.odeme||'nakit')!=='nakit'){const bid=bankaIdOku(o,o.odeme);if(bid)h.bankaId=bid}if(d&&d.bag)h.bag=d.bag;
+   if(o.kart)h.kart=o.kart;if((o.odeme||'nakit')!=='nakit'){const bid=bankaIdOku(o,o.odeme);if(bid)h.bankaId=bid}if(o.odeme==='havale'&&o.karsiBanka)h.karsiBanka=o.karsiBanka;if(d&&d.bag)h.bag=d.bag;
    if(h.odeme==='kart'){const tk2=taksitAlan(o,o.tarih);if(tk2)h.taksit=tk2}
    eskiKaldir(d);db.hareketler.push(h);save();
   });
@@ -2361,7 +2363,7 @@ const bankaSecAlan=(d,etiket)=>bankaListe().length?[{name:'bankaSec',label:etike
 const bankaIdOku=(o,odeme)=>odeme==='nakit'?'':hesapCoz(o.bankaSec).bankaId;
 const cekEtki=(c,al)=>(c.tahsilHesap==='kasa'?(al?'Kasaya girdi':'Kasadan çıktı'):(al?'Bankaya girdi':'Bankadan çıktı')+(c.bankaId&&bankaAd(c.bankaId)?' ('+bankaAd(c.bankaId)+')':''));
 function eskiKaldir(d){if(!d)return;db.kasa=db.kasa.filter(x=>x.id!==d.id);db.hareketler=db.hareketler.filter(x=>x.id!==d.id)}
-const odemeEtiket=h=>h&&h.odeme&&ODEME_AD[h.odeme]?ODEME_AD[h.odeme]+(taksitEtiket(h)?' ('+taksitEtiket(h)+')':''):'';
+const odemeEtiket=h=>h&&h.odeme&&ODEME_AD[h.odeme]?ODEME_AD[h.odeme]+(taksitEtiket(h)?' ('+taksitEtiket(h)+')':'')+(h.karsiBanka?' · Karşı banka: '+h.karsiBanka:''):'';
 function nakitKartEkle(tur,d){
  const cariler=db.cariler.slice().sort((a,b)=>a.ad.localeCompare(b.ad,'tr')).map(c=>[c.id,cariEtiket(c)]);
  const yon0=d?(d.tip?(d.tip==='tahsilat'?'giris':'cikis'):d.yon):'giris';
@@ -2372,13 +2374,14 @@ function nakitKartEkle(tur,d){
   {name:'tutar',label:'Tutar (₺)',type:'number',req:1,step:'0.01',value:d?(d.tip?tot(d):d.tutar):''},
   ...(tur!=='nakit'?bankaSecAlan(d,tur==='kart'?'Kart hangi bankaya çekildi / hangi bankaya işlensin?':'Hangi banka hesabına girdi / hangi hesaptan çıktı?'):[]),
   ...(tur==='havale'&&!bankaListe().length?[{name:'kart',label:'Banka adı (isteğe bağlı)',value:d?d.kart||'':''}]:[]),
+  ...(tur==='havale'?[{name:'karsiBanka',label:'Karşı tarafın bankası (elle yazın, isteğe bağlı)',value:d?d.karsiBanka||'':''}]:[]),
   ...(tur==='kart'?[{name:'kart',label:'Kart / POS adı (kart numarası girmeyin)',value:d?d.kart||'':''},{name:'taksit',label:'Taksit',type:'select',value:d&&d.taksit?String(d.taksit.n):'1',options:taksitSecenek},{name:'ilk',label:'İlk taksit tarihi (boşsa 1 ay sonra)',type:'date',value:d&&d.taksit?d.taksit.ilk:''}]:[]),
   {name:'fatura',label:'Fatura / Makbuz No',value:d?d.fatura||'':''},
   {name:'aciklama',label:'Açıklama',value:d?d.aciklama||'':''}
  ],o=>{
   if(!(o.tutar>0))throw new Error('Tutar sıfırdan büyük olmalı');
   if(/\d{12,19}/.test(String(o.kart||'').replace(/[\s-]/g,'')+' '+String(o.aciklama||'').replace(/[\s-]/g,'')))throw new Error('Kart numarası girmeyin; yalnızca kart/banka adı yazın');
-  const k={id:d?d.id:uid(),tarih:o.tarih,tutar:o.tutar,aciklama:o.aciklama,odeme:tur};if(o.kart)k.kart=o.kart;
+  const k={id:d?d.id:uid(),tarih:o.tarih,tutar:o.tutar,aciklama:o.aciklama,odeme:tur};if(o.kart)k.kart=o.kart;if(tur==='havale'&&o.karsiBanka)k.karsiBanka=o.karsiBanka;
   if(tur!=='nakit'){const bid=bankaIdOku(o,tur);if(bid)k.bankaId=bid}
   if(tur==='kart'){const tk2=taksitAlan(o,o.tarih);if(tk2)k.taksit=tk2}
   if(d&&d.bag)k.bag=d.bag;
@@ -2447,6 +2450,7 @@ function giderEkle(tur,d){
   {name:'aciklama',label:tur==='maas'?'Açıklama (örn. Ekim maaşı, avans, prim)':tur==='vergi'?'Açıklama / dönem (örn. Ekim 2026 KDV)':'Açıklama (örn. kira, elektrik, yakıt)',req:tur==='maas'||tur==='vergi'?0:1,value:d?d.aciklama||'':''},
   {name:'odeme',label:'Nasıl ödendi?',type:'select',value:d?d.odeme||'nakit':'nakit',options:[['nakit','Nakit (kasadan)'],['havale','Banka havalesi / EFT (bankadan)'],['kart','Kredi kartı (banka)']]},
   ...bankaSecAlan(d,'Hangi banka hesabından? (havale / kart için)'),
+  {name:'karsiBanka',label:'Karşı tarafın bankası — havale için (isteğe bağlı)',value:d?d.karsiBanka||'':''},
   {name:'kart',label:'Kart / POS adı (isteğe bağlı, kart numarası girmeyin)',value:d?d.kart||'':''},
   {name:'taksit',label:'Taksit (yalnızca kredi kartı için)',type:'select',value:d&&d.taksit?String(d.taksit.n):'1',options:taksitSecenek},
   {name:'ilk',label:'İlk taksit tarihi (boşsa 1 ay sonra)',type:'date',value:d&&d.taksit?d.taksit.ilk:''}
@@ -2456,6 +2460,7 @@ function giderEkle(tur,d){
   if(tur==='maas')k.kisi=o.kisi;if(tur==='vergi')k.vergiTur=o.vergiTur||'Diğer vergi';k.odeme=o.odeme||'nakit';if(o.kart){if(/\d{12,19}/.test(String(o.kart).replace(/[\s-]/g,'')))throw new Error('Kart numarası girmeyin; yalnızca kart/banka adı yazın');k.kart=o.kart}
   if(o.odeme==='kart'){const tk2=taksitAlan(o,o.tarih);if(tk2)k.taksit=tk2}
   if((o.odeme||'nakit')!=='nakit'){const bid=bankaIdOku(o,o.odeme);if(bid)k.bankaId=bid}
+  if(o.odeme==='havale'&&o.karsiBanka)k.karsiBanka=o.karsiBanka;
   eskiKaldir(d);db.kasa.push(k);save();
  });
 }
