@@ -306,7 +306,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.2.2',SURUM_TARIH='25.11.2026';
+const SURUM='1.2.3',SURUM_TARIH='25.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -1986,16 +1986,16 @@ function aramaGit(i){const x=_araSon[i];if(x)x.git()}
 document.addEventListener('keydown',e=>{if(!OTURUM||e.ctrlKey||e.metaKey||e.altKey)return;const t=e.target&&e.target.tagName;if(e.key==='/'&&t!=='INPUT'&&t!=='TEXTAREA'&&t!=='SELECT'&&!$('#modal.open')){e.preventDefault();if(ROUTE!=='panel'&&ROUTE!==''){go('panel')}setTimeout(()=>{const q=$('#ara_q');if(q)q.focus()},50)}});
 
 /* ---------- Cariler ---------- */
-let arama='',cariYilSec=String(new Date().getFullYear());
+let arama='',cariHesapSec='',cariYilSec=String(new Date().getFullYear());
 function cariYillari(){const y=new Set(db.cariler.map(c=>String(c.yil)));y.add(String(buYil()));return [...y].sort().reverse()}
-function cariFiltre(){const q=arama.toLowerCase();return db.cariler.filter(c=>(cariYilSec==='hepsi'||String(c.yil)===cariYilSec)&&c.ad.toLowerCase().includes(q))}
+function cariFiltre(){const q=arama.toLowerCase().trim();return db.cariler.filter(c=>(cariYilSec==='hepsi'||String(c.yil)===cariYilSec)&&(!cariHesapSec||(cariHesapSec==='yok'?!c.hesap:c.hesap===cariHesapSec))&&(!q||(c.ad+' '+(c.hesap||'')+' '+hesapAd(c.hesap)).toLowerCase().includes(q)))}
 function pgCariler(){
  if(yilDoldur())save();
  if(cariYilSec!=='hepsi'&&!cariYillari().includes(cariYilSec))cariYilSec=String(buYil());
  const tb=(k,l)=>`<button class="${cariYilSec===k?'on':''}" onclick="cariYilSec='${k}';render()">${l}</button>`;
  return `<div class="top"><h2>🏢 Cariler</h2><button class="btn" onclick="yeniCari()">+ Yeni Cari</button></div>
  <div class="tabs" style="margin-bottom:12px">${cariYillari().map(y=>tb(y,y)).join('')}${tb('hepsi','Tümü')}</div>
- <input id="cari_ara" placeholder="Cari ara..." value="${esc(arama)}" oninput="arama=this.value;aramaYap()" style="margin-bottom:12px">
+ <div class="row" style="margin-bottom:12px;flex-wrap:nowrap"><input id="cari_ara" placeholder="Cari ara (isim veya kod: 120, 320...)" value="${esc(arama)}" oninput="arama=this.value;aramaYap()" style="flex:2;min-width:0"><select onchange="cariHesapSec=this.value;aramaYap()" style="flex:1;min-width:0"><option value="">Tüm türler</option>${HESAPLAR.filter(h=>h[0]).map(h=>`<option value="${h[0]}"${cariHesapSec===h[0]?' selected':''}>${esc(h[1])}</option>`).join('')}<option value="yok"${cariHesapSec==='yok'?' selected':''}>Türü belirtilmemiş</option></select></div>
  <div class="grid" id="cl">${cariListe(cariFiltre())}</div>`;
 }
 function cariListe(list){
@@ -2005,7 +2005,7 @@ function cariListe(list){
   <div class="r"><small>Genel Toplam</small><br><b class="${clr(b.net)}" style="font-size:18px">${fmt(b.net)}</b></div></div>`}).join('');
 }
 function aramaYap(){$('#cl').innerHTML=cariListe(cariFiltre())}
-const HESAPLAR=[['','Belirtilmemiş'],['120','120 – Alıcılar (müşteri)'],['320','320 – Satıcılar (tedarikçi)'],['131','131 – Ortaklardan Alacaklar'],['331','331 – Ortaklara Borçlar'],['136','136 – Diğer Çeşitli Alacaklar'],['336','336 – Diğer Çeşitli Borçlar'],['335','335 – Personele Borçlar'],['159','159 – Verilen Sipariş Avansları'],['340','340 – Alınan Sipariş Avansları']];
+const HESAPLAR=[['','Belirtilmemiş'],['120','120 – Alıcılar (müşteri)'],['320','320 – Satıcılar (tedarikçi)'],['131','131 – Ortaklardan Alacaklar'],['331','331 – Ortaklara Borçlar'],['136','136 – Diğer Çeşitli Alacaklar'],['336','336 – Diğer Çeşitli Borçlar'],['335','335 – Personele Borçlar'],['360','360 – Ödenecek Vergi ve Fonlar'],['361','361 – Ödenecek SGK Primleri'],['159','159 – Verilen Sipariş Avansları'],['340','340 – Alınan Sipariş Avansları']];
 const hesapAd=k=>{const h=HESAPLAR.find(x=>x[0]===String(k||''));return h&&h[0]?h[1]:''};
 function cariAlanlari(c){c=c||{};return[
  {name:'ad',label:'Şirket / Kişi Adı',value:c.ad,req:1},
