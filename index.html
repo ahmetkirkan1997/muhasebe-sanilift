@@ -163,7 +163,12 @@ document.addEventListener('input',e=>{ /* beforeinput desteklenmeyen/bestelenmi�
 document.addEventListener('focusin',e=>{const el=e.target;if(paraAlan(el)){setTimeout(()=>paraCiz(el),0)}});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fd=d=>d?d.split('-').reverse().join('.'):'-';
-const tot=h=>h.tutar!=null?h.tutar:+(h.adet*h.birim*(1+h.kdv/100)).toFixed(2);
+const yuv=v=>Math.round((+v||0)*100+ (v<0?-1e-9:1e-9))/100;
+const hsap=h=>{const k=+h.kdv||0,a=+h.adet||0;
+ if(h.fiyatDahil&&h.birimDahil!=null){const top=yuv(a*h.birimDahil),ara=yuv(top/(1+k/100));return{birim:yuv(h.birimDahil/(1+k/100)),ara,kv:yuv(top-ara),top}}
+ if(h.tutar!=null){const top=+h.tutar,ara=yuv(top/(1+k/100));return{birim:yuv(h.birim),ara,kv:yuv(top-ara),top}}
+ const ara=yuv(a*(+h.birim||0)),kv=yuv(ara*k/100);return{birim:yuv(h.birim),ara,kv,top:yuv(ara+kv)}};
+const tot=h=>hsap(h).top;
 const cariAd=id=>(db.cariler.find(c=>c.id===id)||{ad:'—'}).ad;
 const buYil=()=>new Date().getFullYear();
 const cariEtiket=c=>c.ad+(c.yil?' ('+c.yil+')':'');
@@ -301,7 +306,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.2',SURUM_TARIH='23.11.2026';
+const SURUM='1.2.1',SURUM_TARIH='25.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -813,7 +818,7 @@ function ekstreSatirlari(id){
  const out=[],tn={satis:'Satış',alis:'Alış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Önceki yıldan devir',devirk:'Yeni yıl carisine devir'};
  db.hareketler.filter(h=>h.cariId===id).forEach(h=>{
   const t=tot(h),p=h.tip==='alis'||h.tip==='satis';
-  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:'',adet:p?h.adet:null,birim:p?h.birim:null,ara:p?yuvarla(h.adet*h.birim):null,kv:p?yuvarla(t-yuvarla(h.adet*h.birim)):null,oran:p?h.kdv:null,fatura:h.fatura||'',
+  out.push({t:h.tarih,ad:String(h.tip).startsWith('devir')?(h.aciklama||tn[h.tip]):tn[h.tip]+(odemeEtiket(h)?' ('+odemeEtiket(h)+')':'')+(h.urun?': '+h.urun:(h.aciklama?': '+h.aciklama:'')),alt:'',adet:p?h.adet:null,birim:p?hsap(h).birim:null,ara:p?hsap(h).ara:null,kv:p?hsap(h).kv:null,oran:p?h.kdv:null,fatura:h.fatura||'',
    borc:borcSutunu(h)?t:0,alacak:borcSutunu(h)?0:t});
  });
  db.cekler.filter(c=>c.cariId===id&&c.durum!=='odenmedi').forEach(c=>{
@@ -1388,7 +1393,7 @@ function kdvAylik(){
  db.hareketler.forEach(h=>{
   if(h.tip!=='satis'&&h.tip!=='alis')return;
   const t=String(h.tarih||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(t))return;
-  const top=tot(h),oran=+h.kdv||0,matrah=h.tutar!=null?top/(1+oran/100):(+h.adet||0)*(+h.birim||0),kdv=top-matrah;
+  const top=tot(h),oran=+h.kdv||0,matrah=hsap(h).ara,kdv=hsap(h).kv;
   const m=M[t]||(M[t]={ay:t,smat:0,skdv:0,amat:0,akdv:0});
   if(h.tip==='satis'){m.smat+=matrah;m.skdv+=kdv}else{m.amat+=matrah;m.akdv+=kdv}
  });
@@ -1467,7 +1472,7 @@ function tumVeriXlsx(){
     let Hh='',I='',J,Jv=t,Hv=0,Iv=0;
     if(p){
      if(h.tutar!=null){Hv=r2(t/(1+oran/100));Iv=r2(t-Hv);J=XM(t);Hh=F('ROUND(J'+r+'/(1+G'+r+'/100),2)',2,Hv);I=F('J'+r+'-H'+r,2,Iv)}
-     else{Hv=r2((+h.adet||0)*(+h.birim||0));Iv=r2(Hv*oran/100);Jv=r2(Hv+Iv);Hh=F('ROUND(E'+r+'*F'+r+',2)',2,Hv);I=F('ROUND(H'+r+'*G'+r+'/100,2)',2,Iv);J=F('H'+r+'+I'+r,2,Jv)}
+     else{const q=hsap(h);Hv=q.ara;Iv=q.kv;Jv=q.top;if(h.fiyatDahil&&h.birimDahil!=null){J=XM(Jv);Hh=F('ROUND(J'+r+'/(1+G'+r+'/100),2)',2,Hv);I=F('J'+r+'-H'+r,2,Iv)}else{Hh=F('ROUND(E'+r+'*F'+r+',2)',2,Hv);I=F('ROUND(H'+r+'*G'+r+'/100,2)',2,Iv);J=F('H'+r+'+I'+r,2,Jv)}}
      KDVL.push({ay:String(h.tarih||'').slice(0,7),cari:cariEtiket(c),tur,m:Hv,k:Iv});
     }else J=XM(t);
     V[sn]+=Jv;run=r2(run+sg(sn)*Jv);
@@ -1640,8 +1645,8 @@ function tumVeriXlsx(){
   const it=(t.items||[]).filter(i=>i.ad||i.birim),oran=+t.kdv||0;
   tSat.push({baslik:'TEKLİF '+(t.no||'')+' — '+(t.musteri||cAd(t.cariId)||'Müşteri belirtilmemiş')+' — '+fd(t.tarih)+' — '+it.length+' kalem'});
   const ilk=tCH+tSat.length;let sa=0,sg=0;
-  it.forEach(i=>{const r=tCH+tSat.length,ara=r2((+i.adet||0)*(+i.birim||0)),g=t.dahil?ara:r2(ara*(1+oran/100));sa+=ara;sg+=g;
-   tSat.push([t.no||'',XD(t.tarih),t.musteri||cAd(t.cariId),i.ad||'',+i.adet||0,+i.birim||0,oran,t.dahil?'Evet':'Hayır',F('E'+r+'*F'+r,2,ara),F('IF(H'+r+'="Evet",I'+r+',I'+r+'*(1+G'+r+'/100))',2,g)])});
+  it.forEach(i=>{const r=tCH+tSat.length,ara=r2((+i.adet||0)*(+i.birim||0)),g=tkSatir(i,t).tutar;sa+=ara;sg+=g;
+   tSat.push([t.no||'',XD(t.tarih),t.musteri||cAd(t.cariId),i.ad||'',+i.adet||0,+i.birim||0,oran,t.dahil?'Evet':'Hayır',F('E'+r+'*F'+r,2,ara),F('ROUND(IF(H'+r+'="Evet",I'+r+',I'+r+'*(1+G'+r+'/100)),2)',2,g)])});
   const son=tCH+tSat.length-1,gT=tCH+tSat.length+2,mat=r2(sg/(1+oran/100)),kdv=r2(sg-mat);tGenel+=sg;
   tSat.push(['','','','Matrah (KDV hariç)','','','','','',F('ROUND(J'+gT+'/(1+G'+ilk+'/100),2)',2,mat)]);
   tSat.push(['','','','KDV tutarı (%'+oran+')','','','','','',F('J'+gT+'-J'+(gT-2),2,kdv)]);
@@ -1730,7 +1735,7 @@ function karAylik(){
  db.hareketler.forEach(h=>{
   if(h.tip!=='satis'&&h.tip!=='alis')return;
   const t=String(h.tarih||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(t))return;
-  const top=tot(h),oran=+h.kdv||0,mat=h.tutar!=null?top/(1+oran/100):(+h.adet||0)*(+h.birim||0);
+  const top=tot(h),oran=+h.kdv||0,mat=hsap(h).ara;
   if(h.tip==='satis')al(t).satis+=mat;else al(t).alis+=mat;
  });
  db.kasa.filter(kasaGider).forEach(k=>{const t=String(k.tarih||'').slice(0,7);if(/^\d{4}-\d{2}$/.test(t))al(t).gider+=+k.tutar||0});
@@ -2064,7 +2069,7 @@ function pgCari(id){
  </div>
  <h3 style="margin-bottom:8px">Hareketler</h3>
  ${hc.length?`<div class="tw"><table><tr><th>Tarih</th><th>Tür</th><th>Ürün / Açıklama</th><th>Fatura No</th><th class="r">Adet</th><th class="r">Birim Fiyat</th><th class="r">KDV Hariç</th><th class="r">KDV</th><th class="r">Toplam</th><th></th></tr>
- ${gunAyir(hc,x=>{if(x.c)return cekSatir(x.c);const h=x.h;const p=h.tip==='alis'||h.tip==='satis';const ara=p?h.adet*h.birim:0;const kv=p?ara*h.kdv/100:0;return `<tr data-rid="${h.id}"><td>${fd(h.tarih)}</td><td><span class="tag t-${h.tip}">${tn[h.tip]}</span></td><td>${esc([odemeEtiket(h),h.urun||h.aciklama,h.ciro&&h.kaynak?(()=>{const k=db.cariler.find(x=>x.id===h.kaynak);return k?'Kaynak: '+cariEtiket(k)+' çeki':''})():''].filter(Boolean).join(' · '))}</td><td>${esc(h.fatura||'-')}</td><td class="r">${p?h.adet:''}</td><td class="r">${p?fmt(h.birim):''}</td><td class="r" style="color:#fff">${p?fmt(ara):''}</td><td class="r yel">${p?fmt(kv)+' (%'+h.kdv+')':''}</td><td class="r ${(h.tip==='alis'||h.tip==='odeme'||(String(h.tip).startsWith('devir')&&h.yon==='verecek'))?'red':'green'}"><b>${fmt(tot(h))}</b></td><td><button class="btn dng sm" onclick="hareketSil('${h.id}')">✕</button></td></tr>`})}
+ ${gunAyir(hc,x=>{if(x.c)return cekSatir(x.c);const h=x.h;const p=h.tip==='alis'||h.tip==='satis';const q=hsap(h),ara=p?q.ara:0;const kv=p?q.kv:0;return `<tr data-rid="${h.id}"><td>${fd(h.tarih)}</td><td><span class="tag t-${h.tip}">${tn[h.tip]}</span></td><td>${esc([odemeEtiket(h),h.urun||h.aciklama,h.ciro&&h.kaynak?(()=>{const k=db.cariler.find(x=>x.id===h.kaynak);return k?'Kaynak: '+cariEtiket(k)+' çeki':''})():''].filter(Boolean).join(' · '))}</td><td>${esc(h.fatura||'-')}</td><td class="r">${p?h.adet:''}</td><td class="r">${p?fmt(q.birim):''}</td><td class="r" style="color:#fff">${p?fmt(ara):''}</td><td class="r yel">${p?fmt(kv)+' (%'+h.kdv+')':''}</td><td class="r ${(h.tip==='alis'||h.tip==='odeme'||(String(h.tip).startsWith('devir')&&h.yon==='verecek'))?'red':'green'}"><b>${fmt(tot(h))}</b></td><td><button class="btn dng sm" onclick="hareketSil('${h.id}')">✕</button></td></tr>`})}
  <tr class="tot"><td colspan="8" class="r">Toplam Alış (KDV dahil) / Toplam Satış (KDV dahil)</td><td class="r"><span class="red">${fmt(b.alis)}</span><br><span class="green">${fmt(b.satis)}</span></td><td></td></tr>
  <tr class="tot"><td colspan="8" class="r">Toplam Ödeme (bizden çıkan) / Toplam Tahsilat (bize giren)</td><td class="r"><span class="red">${fmt(b.ode)}</span><br><span class="green">${fmt(b.tah)}</span></td><td></td></tr>
  <tr class="tot"><td colspan="8" class="r">GENEL TOPLAM (Alacak − Verecek)</td><td class="r ${clr(b.net)}">${fmt(b.net)}</td><td></td></tr>
@@ -2081,8 +2086,8 @@ function hareketEkle(cariId,tip){
    {name:'birim',label:'Birim Fiyat (yukarıda seçtiğiniz türe göre)',type:'number'},
    {name:'kdv',label:'KDV %',type:'number',value:db.ayar.kdv},
    {name:'fatura',label:'Fatura No'}
-  ],o=>{const x={...o};if(x.fiyatTur==='dahil'){x.birimDahil=x.birim;x.birim=x.birim/(1+x.kdv/100);x.fiyatDahil=true}delete x.fiyatTur;db.hareketler.push({id:uid(),cariId,tip,...x});save()},
-  {prev:o=>{const ara=o.fiyatTur==='dahil'?o.adet*o.birim/(1+o.kdv/100):o.adet*o.birim;const k=ara*o.kdv/100;return `<div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV Hariç Tutar</span><b style="color:#fff">${fmt(ara)}</b></div><div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV (%${o.kdv})</span><b class="yel">${fmt(k)}</b></div><div style="display:flex;justify-content:space-between;padding:6px 0 0;margin-top:4px;border-top:1px solid #ffffff22"><span>GENEL TOPLAM</span><b class="green" style="font-size:20px">${fmt(ara+k)}</b></div>`}});
+  ],o=>{const x={...o};if(x.fiyatTur==='dahil'){x.birimDahil=x.birim;x.birim=yuv(x.birim/(1+x.kdv/100));x.fiyatDahil=true}delete x.fiyatTur;db.hareketler.push({id:uid(),cariId,tip,...x});save()},
+  {prev:o=>{const q=hsap({adet:o.adet,kdv:o.kdv,birim:o.birim,fiyatDahil:o.fiyatTur==='dahil',birimDahil:o.fiyatTur==='dahil'?o.birim:null}),ara=q.ara,k=q.kv;return `<div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV Hariç Tutar</span><b style="color:#fff">${fmt(ara)}</b></div><div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV (%${o.kdv})</span><b class="yel">${fmt(k)}</b></div><div style="display:flex;justify-content:space-between;padding:6px 0 0;margin-top:4px;border-top:1px solid #ffffff22"><span>GENEL TOPLAM</span><b class="green" style="font-size:20px">${fmt(q.top)}</b></div>`}});
  }else{
   form(tip==='odeme'?'Ödeme Yaptım (Verecekten düşer)':'Tahsilat Aldım (Alacaktan düşer)',[
    {name:'tarih',label:'Tarih',type:'date',value:today(),req:1},
@@ -2395,10 +2400,8 @@ function pgTeklif(){
  <h3 style="margin:22px 0 8px">Kayıtlı Teklifler</h3>
  ${db.teklifler.length?`<div class="tw"><table><tr><th>No</th><th>Tarih</th><th>Müşteri</th><th class="r">Toplam</th><th></th></tr>${db.teklifler.slice().reverse().map(t=>`<tr data-rid="${t.id}"><td>${esc(t.no)}</td><td>${fd(t.tarih)}</td><td>${esc(t.musteri)}</td><td class="r"><b>${fmt(tkTop(t).g)}</b></td><td><button class="btn sm" onclick="tkAc('${t.id}')">Aç</button> <button class="btn ghost sm" onclick="tkPdfId('${t.id}')">PDF</button> <button class="btn dng sm" onclick="confirmDel('Teklif silinsin mi?',()=>db.teklifler=db.teklifler.filter(x=>x.id!=='${t.id}'))">✕</button></td></tr>`).join('')}</table></div>`:'<div class="empty">Kayıtlı teklif yok.</div>'}`;
 }
-function tkSatir(i,t){const o=+t.kdv||0,top=i.adet*i.birim;
- if(t.dahil){const tutar=yuvarla(top),ara=yuvarla(top/(1+o/100));return{haric:i.birim/(1+o/100),ara,kdv:yuvarla(tutar-ara),tutar}}
- const ara=yuvarla(top),kdv=yuvarla(top*o/100);return{haric:i.birim,ara,kdv,tutar:yuvarla(ara+kdv)}}
-function tkTop(t){const s=t.items.reduce((x,i)=>x+i.adet*i.birim,0);if(t.dahil){const g=s,a=g/(1+t.kdv/100);return{a,k:g-a,g}}const k=s*t.kdv/100;return{a:s,k,g:s+k}}
+function tkSatir(i,t){const q=hsap({adet:i.adet,birim:i.birim,kdv:t.kdv,fiyatDahil:!!t.dahil,birimDahil:t.dahil?i.birim:null});return{haric:q.birim,ara:q.ara,kdv:q.kv,tutar:q.top}}
+function tkTop(t){let a=0,k=0,g=0;(t.items||[]).forEach(i=>{const q=tkSatir(i,t);a+=q.ara;k+=q.kdv;g+=q.tutar});return{a:yuv(a),k:yuv(k),g:yuv(g)}}
 function musteriSatirlari(t){const m=t.mb||{};return [[m.vdairesi&&('Vergi Dairesi: '+m.vdairesi),m.vergi&&('Vergi No / TC: '+m.vergi)].filter(Boolean).join('   '),[m.tel&&('Tel: '+m.tel),m.eposta&&('E-posta: '+m.eposta)].filter(Boolean).join('   '),m.adres&&('Adres: '+m.adres)].filter(Boolean)}
 function initTeklif(){
  $('#k_no').value=tk.no;$('#k_tarih').value=tk.tarih;$('#k_gec').value=tk.gecerlilik;$('#k_kdv').value=tk.kdv;$('#k_must').value=tk.musteri;$('#k_not').value=tk.not;
