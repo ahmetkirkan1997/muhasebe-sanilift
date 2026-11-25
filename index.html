@@ -306,7 +306,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.2.3',SURUM_TARIH='25.11.2026';
+const SURUM='1.2.4',SURUM_TARIH='25.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -1929,7 +1929,7 @@ const ARA_GRUP=[['cari','🏢','Cariler'],['cek','🧾','Çek / Senet'],['hareke
 function aramaIndeks(){
  const I=[],cAd=id=>{const c=db.cariler.find(x=>x.id===id);return c?cariEtiket(c):''};
  const tn={alis:'Alış',satis:'Satış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Devir (açılış)',devirk:'Devir (kapanış)'};
- db.cariler.forEach(c=>{const b=bakiye(c.id),alt=[c.vdairesi&&('V.D. '+c.vdairesi),c.vergi&&('Vergi No: '+c.vergi),c.tel,c.eposta,c.adres].filter(Boolean).join(' · ');
+ db.cariler.forEach(c=>{const b=bakiye(c.id),alt=[c.hesap&&hesapAd(c.hesap),c.vdairesi&&('V.D. '+c.vdairesi),c.vergi&&('Vergi No: '+c.vergi),c.tel,c.eposta,c.adres].filter(Boolean).join(' · ');
   I.push({g:'cari',baslik:cariEtiket(c),alt,tutar:b.net,renk:b.net<0?'red':'green',tarih:'',metin:[c.ad,c.yil,c.hesap,hesapAd(c.hesap),c.vdairesi,c.vergi,c.tel,c.eposta,c.adres,'cari'].join(' '),git(){go('cari/'+c.id)}})});
  db.hareketler.forEach(h=>{const t=tot(h),ca=cAd(h.cariId),p=h.tip==='alis'||h.tip==='satis',tip=tn[h.tip]||h.tip;
   const alt=[ca,fd(h.tarih),odemeEtiket(h),h.fatura&&('Fatura: '+h.fatura),h.kart,p?h.adet+' adet':''].filter(Boolean).join(' · ');
