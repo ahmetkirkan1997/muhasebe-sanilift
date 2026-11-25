@@ -870,7 +870,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   P.kutu(L,y,Rr-L,7,DARK);const ty=y+4.8,o={f:'B',boyut:8,renk:YEL};
   const sg=Object.assign({hiza:'sag'},o),kdvBas=db.ayar.kdv!=null&&db.ayar.kdv!==''?'KDV %'+String(db.ayar.kdv).replace('.',','):'KDV';
   P.yaz(13,ty,'Tarih',o);P.yaz(33,ty,'Açıklama',o);P.yaz(108,ty,'Fatura No',o);
-  P.yaz(144,ty,'Adet',sg);P.yaz(165,ty,'Birim Fiyat',sg);P.yaz(189,ty,"KDV'siz",sg);P.yaz(212,ty,kdvBas,sg);
+  P.yaz(144,ty,'Adet',sg);P.yaz(165,ty,'Birim Fiyat',sg);P.yaz(189,ty,"KDV Hariç",sg);P.yaz(212,ty,kdvBas,sg);
   P.yaz(235,ty,'Borç (₺)',sg);P.yaz(253,ty,'Alacak (₺)',sg);P.yaz(Rr,ty,'Bakiye (₺)',sg);
   y+=7;
  }
@@ -1367,7 +1367,7 @@ function ekstreXlsx(id,bas,bit,cekGoster){
  const e=ekstreHesapla(id,bas,bit),fn=db.ayar.firma||'Firmamız',fnF=db.ayar.firma?fn+' firması':fn,F=(f,st,v)=>({f,s:st==null?2:st,v});
  const U=7,H0=U+2,sat=[];
  if(bas||e.devir)sat.push([XD(bas),'Devir (dönem başı)','','','','',XM(e.devir)]);
- e.liste.forEach(r=>sat.push([XD(r.t),r.ad,r.alt||(r.oran!=null?r.adet+' × ₺'+pn(r.birim)+' (KDV hariç) · KDV %'+r.oran+': ₺'+pn(r.kv)+' · KDV’siz toplam: ₺'+pn(r.ara):''),r.fatura||'',r.borc?XM(r.borc):'',r.alacak?XM(r.alacak):'',XM(r.bak)]));
+ e.liste.forEach(r=>sat.push([XD(r.t),r.ad,r.alt||(r.oran!=null?r.adet+' × ₺'+pn(r.birim)+' (KDV hariç) · KDV %'+r.oran+': ₺'+pn(r.kv)+' · KDV hariç toplam: ₺'+pn(r.ara):''),r.fatura||'',r.borc?XM(r.borc):'',r.alacak?XM(r.alacak):'',XM(r.bak)]));
  const son=H0+sat.length-1,rg=col=>'$'+col+'$'+H0+':$'+col+'$'+Math.max(son,H0);
  sat.push([XT('TOPLAM'),'','','',F('SUM('+rg('E')+')',5,e.tb),F('SUM('+rg('F')+')',5,e.ta),F('E'+(son+1)+'-F'+(son+1),5,e.bakiye)]);
  const tr=H0+sat.length-1,bk=e.bakiye;
@@ -1748,7 +1748,7 @@ function karForm(){
  const L=karAylik(),m=$('#modal');
  const tr=L.slice().reverse().map(x=>'<tr><td>'+kdvAyAd(x.ay)+'</td><td class="r">'+pn(x.satis)+'</td><td class="r">'+pn(x.alis)+'</td><td class="r">'+pn(x.gider)+'</td><td class="r '+(x.sonuc<0?'red':'green')+'">'+pn(x.sonuc)+'</td></tr>').join('');
  const T=k=>yuvarla(L.reduce((a,x)=>a+x[k],0));
- m.innerHTML='<div class="box" style="max-width:760px"><h3>📈 Aylık Kâr / Zarar</h3><p style="color:var(--mut);font-size:12.5px;margin:8px 0;line-height:1.5">'+esc(KAR_NOT)+'</p><div style="overflow:auto;max-height:55vh"><table><tr><th>Ay</th><th class="r">Satış (KDV’siz)</th><th class="r">Alış (KDV’siz)</th><th class="r">Gider</th><th class="r">Kâr / Zarar</th></tr>'+(tr||'<tr><td colspan="5">Kayıt yok</td></tr>')+'<tr class="tot"><td>TOPLAM</td><td class="r">'+pn(T('satis'))+'</td><td class="r">'+pn(T('alis'))+'</td><td class="r">'+pn(T('gider'))+'</td><td class="r">'+pn(T('sonuc'))+'</td></tr></table></div><div class="row end" style="margin-top:12px"><button class="btn ghost" id="kr_x">📊 Excel</button><button class="btn" id="kr_v">Kapat</button></div></div>';
+ m.innerHTML='<div class="box" style="max-width:760px"><h3>📈 Aylık Kâr / Zarar</h3><p style="color:var(--mut);font-size:12.5px;margin:8px 0;line-height:1.5">'+esc(KAR_NOT)+'</p><div style="overflow:auto;max-height:55vh"><table><tr><th>Ay</th><th class="r">Satış (KDV hariç)</th><th class="r">Alış (KDV hariç)</th><th class="r">Gider</th><th class="r">Kâr / Zarar</th></tr>'+(tr||'<tr><td colspan="5">Kayıt yok</td></tr>')+'<tr class="tot"><td>TOPLAM</td><td class="r">'+pn(T('satis'))+'</td><td class="r">'+pn(T('alis'))+'</td><td class="r">'+pn(T('gider'))+'</td><td class="r">'+pn(T('sonuc'))+'</td></tr></table></div><div class="row end" style="margin-top:12px"><button class="btn ghost" id="kr_x">📊 Excel</button><button class="btn" id="kr_v">Kapat</button></div></div>';
  m.classList.add('open');$('#kr_v').onclick=closeM;
  $('#kr_x').onclick=async()=>{const ad='aylik-kar-zarar-'+today()+'.xlsx',r=await dosyaKaydet(xlsxYaz([karSheet()]),ad);toast(r==='ok'?'Excel kaydedildi: '+ad:r==='iptal'?'Kaydetme iptal edildi':'⚠️ Excel kaydedilemedi',5000)};
 }
@@ -1757,7 +1757,7 @@ function karSheet(){
  const sat=L.map((x,i)=>{const r=r0+i;return [kdvAyAd(x.ay),XM(x.satis),XM(x.alis),XM(x.gider),F('B'+r+'-C'+r+'-D'+r,2,x.sonuc)]});
  const n=L.length,a=r0,z=r0+n-1;
  sat.push([XT('TOPLAM'),n?F('SUM(B'+a+':B'+z+')',5,yuvarla(L.reduce((s,x)=>s+x.satis,0))):XMK(0),n?F('SUM(C'+a+':C'+z+')',5,yuvarla(L.reduce((s,x)=>s+x.alis,0))):XMK(0),n?F('SUM(D'+a+':D'+z+')',5,yuvarla(L.reduce((s,x)=>s+x.gider,0))):XMK(0),n?F('SUM(E'+a+':E'+z+')',5,yuvarla(L.reduce((s,x)=>s+x.sonuc,0))):XMK(0)]);
- return {ad:'Kâr-Zarar',ust:[{baslik:'AYLIK KÂR / ZARAR — '+(db.ayar.firma||'Firma')},[XA(KAR_NOT)],[],[]],freeze:false,kol:[{b:'Ay',w:18},{b:'Satış, KDV’siz (₺)',w:22},{b:'Alış, KDV’siz (₺)',w:22},{b:'Gider (₺)',w:19},{b:'Kâr / Zarar (₺)',w:20}],satir:sat};
+ return {ad:'Kâr-Zarar',ust:[{baslik:'AYLIK KÂR / ZARAR — '+(db.ayar.firma||'Firma')},[XA(KAR_NOT)],[],[]],freeze:false,kol:[{b:'Ay',w:18},{b:'Satış, KDV hariç (₺)',w:22},{b:'Alış, KDV hariç (₺)',w:22},{b:'Gider (₺)',w:19},{b:'Kâr / Zarar (₺)',w:20}],satir:sat};
 }
 /* Alacak yaşlandırma: tahsilatlar en eski satıştan başlayarak düşülür (FIFO) */
 function yaslandir(id){
@@ -2063,7 +2063,7 @@ function pgCari(id){
   <button class="btn ghost" onclick="yeniYilCari('${id}')">📅 Yeni Yıl Carisi</button>
  </div>
  <h3 style="margin-bottom:8px">Hareketler</h3>
- ${hc.length?`<div class="tw"><table><tr><th>Tarih</th><th>Tür</th><th>Ürün / Açıklama</th><th>Fatura No</th><th class="r">Adet</th><th class="r">Birim Fiyat</th><th class="r">KDV'siz</th><th class="r">KDV</th><th class="r">Toplam</th><th></th></tr>
+ ${hc.length?`<div class="tw"><table><tr><th>Tarih</th><th>Tür</th><th>Ürün / Açıklama</th><th>Fatura No</th><th class="r">Adet</th><th class="r">Birim Fiyat</th><th class="r">KDV Hariç</th><th class="r">KDV</th><th class="r">Toplam</th><th></th></tr>
  ${gunAyir(hc,x=>{if(x.c)return cekSatir(x.c);const h=x.h;const p=h.tip==='alis'||h.tip==='satis';const ara=p?h.adet*h.birim:0;const kv=p?ara*h.kdv/100:0;return `<tr data-rid="${h.id}"><td>${fd(h.tarih)}</td><td><span class="tag t-${h.tip}">${tn[h.tip]}</span></td><td>${esc([odemeEtiket(h),h.urun||h.aciklama,h.ciro&&h.kaynak?(()=>{const k=db.cariler.find(x=>x.id===h.kaynak);return k?'Kaynak: '+cariEtiket(k)+' çeki':''})():''].filter(Boolean).join(' · '))}</td><td>${esc(h.fatura||'-')}</td><td class="r">${p?h.adet:''}</td><td class="r">${p?fmt(h.birim):''}</td><td class="r" style="color:#fff">${p?fmt(ara):''}</td><td class="r yel">${p?fmt(kv)+' (%'+h.kdv+')':''}</td><td class="r ${(h.tip==='alis'||h.tip==='odeme'||(String(h.tip).startsWith('devir')&&h.yon==='verecek'))?'red':'green'}"><b>${fmt(tot(h))}</b></td><td><button class="btn dng sm" onclick="hareketSil('${h.id}')">✕</button></td></tr>`})}
  <tr class="tot"><td colspan="8" class="r">Toplam Alış (KDV dahil) / Toplam Satış (KDV dahil)</td><td class="r"><span class="red">${fmt(b.alis)}</span><br><span class="green">${fmt(b.satis)}</span></td><td></td></tr>
  <tr class="tot"><td colspan="8" class="r">Toplam Ödeme (bizden çıkan) / Toplam Tahsilat (bize giren)</td><td class="r"><span class="red">${fmt(b.ode)}</span><br><span class="green">${fmt(b.tah)}</span></td><td></td></tr>
@@ -2082,7 +2082,7 @@ function hareketEkle(cariId,tip){
    {name:'kdv',label:'KDV %',type:'number',value:db.ayar.kdv},
    {name:'fatura',label:'Fatura No'}
   ],o=>{const x={...o};if(x.fiyatTur==='dahil'){x.birimDahil=x.birim;x.birim=x.birim/(1+x.kdv/100);x.fiyatDahil=true}delete x.fiyatTur;db.hareketler.push({id:uid(),cariId,tip,...x});save()},
-  {prev:o=>{const ara=o.fiyatTur==='dahil'?o.adet*o.birim/(1+o.kdv/100):o.adet*o.birim;const k=ara*o.kdv/100;return `<div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV'siz Tutar</span><b style="color:#fff">${fmt(ara)}</b></div><div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV (%${o.kdv})</span><b class="yel">${fmt(k)}</b></div><div style="display:flex;justify-content:space-between;padding:6px 0 0;margin-top:4px;border-top:1px solid #ffffff22"><span>GENEL TOPLAM</span><b class="green" style="font-size:20px">${fmt(ara+k)}</b></div>`}});
+  {prev:o=>{const ara=o.fiyatTur==='dahil'?o.adet*o.birim/(1+o.kdv/100):o.adet*o.birim;const k=ara*o.kdv/100;return `<div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV Hariç Tutar</span><b style="color:#fff">${fmt(ara)}</b></div><div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV (%${o.kdv})</span><b class="yel">${fmt(k)}</b></div><div style="display:flex;justify-content:space-between;padding:6px 0 0;margin-top:4px;border-top:1px solid #ffffff22"><span>GENEL TOPLAM</span><b class="green" style="font-size:20px">${fmt(ara+k)}</b></div>`}});
  }else{
   form(tip==='odeme'?'Ödeme Yaptım (Verecekten düşer)':'Tahsilat Aldım (Alacaktan düşer)',[
    {name:'tarih',label:'Tarih',type:'date',value:today(),req:1},
@@ -2421,7 +2421,7 @@ function tkBody(){
  return `<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div>${window.__LOGO?`<img src="${LOGO_SRC}" alt="Logo" style="height:58px;width:auto;display:block;margin-bottom:8px">`:''}<h2>TEKLİF</h2><div>No: <b>${esc(tk.no)}</b></div><div>Tarih: ${fd(tk.tarih)}</div>${tk.gecerlilik?`<div>Geçerlilik: ${fd(tk.gecerlilik)}</div>`:''}</div>
  <div style="text-align:right"><b>${esc(a.firma||'Firma Adınız')}</b>${firmaSatirlari(a).map(l=>`<div>${esc(l)}</div>`).join('')}</div></div>
  <div style="margin:14px 0;padding:10px;background:#fff6e6;border-left:4px solid #ff7a00"><small>Sayın</small><br><b>${esc(tk.musteri||'—')}</b>${musteriSatirlari(tk).map(l=>`<div style="font-size:13px;color:#444">${esc(l)}</div>`).join('')}</div>
- <table><tr><th>#</th><th>Ürün / Hizmet</th><th class="r">Adet</th><th class="r">Birim Fiyat</th><th class="r">KDV'siz</th><th class="r">KDV %${String(tk.kdv).replace('.',',')}</th><th class="r">Tutar (KDV dahil)</th></tr>
+ <table><tr><th>#</th><th>Ürün / Hizmet</th><th class="r">Adet</th><th class="r">Birim Fiyat</th><th class="r">KDV Hariç</th><th class="r">KDV %${String(tk.kdv).replace('.',',')}</th><th class="r">Tutar (KDV dahil)</th></tr>
  ${tk.items.map((i,n)=>{const r=tkSatir(i,tk);return `<tr><td>${n+1}</td><td>${esc(i.ad)}</td><td class="r">${i.adet}</td><td class="r">${fmt(r.haric)}</td><td class="r">${fmt(r.ara)}</td><td class="r">${fmt(r.kdv)}</td><td class="r"><b>${fmt(r.tutar)}</b></td></tr>`}).join('')}</table>
  <div class="tt"><div><span>Ara Toplam${tk.dahil?' (KDV hariç)':''}</span><span>${fmt(t.a)}</span></div><div><span>KDV (%${tk.kdv})</span><span>${fmt(t.k)}</span></div><div class="g"><span>GENEL TOPLAM</span><span>${fmt(t.g)}</span></div></div>
  ${tk.not?`<p style="margin-top:16px;color:#555;white-space:pre-wrap">${esc(tk.not)}</p>`:''}`;
@@ -2457,7 +2457,7 @@ async function teklifPdf(t){
  function tabloBasi(){
   P.kutu(L,y,Rr-L,7,DARK);const ty=y+4.8,o={f:'B',boyut:8,renk:YEL};
   const sg=Object.assign({hiza:'sag'},o);
-  P.yaz(13.5,ty,'#',o);P.yaz(22,ty,'Ürün / Hizmet',o);P.yaz(88,ty,'Adet',sg);P.yaz(112,ty,'Birim Fiyat',sg);P.yaz(138,ty,"KDV'siz",sg);P.yaz(163,ty,'KDV %'+sy(t.kdv),sg);P.yaz(196.5,ty,'Tutar (KDV dahil)',sg);
+  P.yaz(13.5,ty,'#',o);P.yaz(22,ty,'Ürün / Hizmet',o);P.yaz(88,ty,'Adet',sg);P.yaz(112,ty,'Birim Fiyat',sg);P.yaz(138,ty,"KDV Hariç",sg);P.yaz(163,ty,'KDV %'+sy(t.kdv),sg);P.yaz(196.5,ty,'Tutar (KDV dahil)',sg);
   y+=7;
  }
  sayfaBasla(true);tabloBasi();
