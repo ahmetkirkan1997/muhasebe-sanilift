@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.3.5',SURUM_TARIH='26.11.2026';
+const SURUM='1.3.6',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -1008,20 +1008,30 @@ function ekstreForm(id){
  };
 }
 
+/* ---------- Carilere toplu tür atama ---------- */
+function topluTurAta(){
+ const L=db.cariler.slice().sort((a,b)=>a.ad.localeCompare(b.ad,'tr')),m=$('#modal');
+ m.innerHTML='<div class="box"><h3>🏷️ Carilere Tür Ata</h3><p style="color:var(--mut);font-size:13px;margin:8px 0;line-height:1.5">Her carinin türünü (120, 320...) seçin; sonra Kaydet\'e basın.</p><div style="max-height:55vh;overflow:auto;margin:6px 0">'
+  +L.map(c=>'<div style="display:flex;gap:8px;align-items:center;margin:6px 0"><span style="flex:1;min-width:0;overflow-wrap:anywhere">'+esc(cariEtiket(c))+'</span><select data-cid="'+c.id+'" style="flex:1;min-width:0">'+HESAPLAR.map(h=>'<option value="'+h[0]+'"'+((c.hesap||'')===h[0]?' selected':'')+'>'+esc(h[1])+'</option>').join('')+'</select></div>').join('')
+  +'</div><div class="row end"><button class="btn ghost" id="ta_v">Vazgeç</button><button class="btn" id="ta_k">Kaydet</button></div></div>';
+ m.classList.add('open');
+ $('#ta_v').onclick=()=>topluEkstreForm();
+ $('#ta_k').onclick=()=>{document.querySelectorAll('#modal select[data-cid]').forEach(e=>{const c=db.cariler.find(x=>x.id===e.dataset.cid);if(c){if(e.value)c.hesap=e.value;else delete c.hesap}});save();render();toast('Cari türleri kaydedildi ✓');topluEkstreForm()};
+}
 /* ---------- Toplu cari ekstresi (tek PDF) ---------- */
 function topluEkstreForm(){
  if(!db.cariler.length){toast('Önce cari ekleyin');return}
- const turler=[...HESAPLAR.filter(h=>h[0]).filter(h=>db.cariler.some(c=>c.hesap===h[0])),...(db.cariler.some(c=>!c.hesap)?[['yok','Türü belirtilmemiş']]:[])];
+ const turler=[...HESAPLAR.filter(h=>h[0]),['yok','Türü belirtilmemiş']];
  const yillar=cariYillari();
  const m=$('#modal');
  m.innerHTML='<div class="box"><h3>📄 Tüm Cari Ekstreleri (tek PDF)</h3><p style="color:var(--mut);font-size:13px;margin:8px 0;line-height:1.5">Seçtiğiniz cari türlerindeki tüm carilerin ekstresi tek PDF dosyasında, başa bir özet sayfası eklenerek hazırlanır.</p>'
   +'<label>Cari türleri</label><div id="t_turler" style="display:grid;gap:6px;margin:4px 0 8px"><label style="display:flex;gap:8px;align-items:center;margin:0"><input type="checkbox" id="t_hepsi" checked style="width:auto"> <b>Hepsi</b></label>'
-  +turler.map(t=>'<label style="display:flex;gap:8px;align-items:center;margin:0"><input type="checkbox" class="t_tur" value="'+esc(t[0])+'" checked style="width:auto"> '+esc(t[1])+' <small style="color:var(--mut)">('+db.cariler.filter(c=>t[0]==="yok"?!c.hesap:c.hesap===t[0]).length+')</small></label>').join('')+'</div>'
+  +turler.map(t=>(n=>'<label style="display:flex;gap:8px;align-items:center;margin:0;'+(n?'':'opacity:.45')+'"><input type="checkbox" class="t_tur" value="'+esc(t[0])+'"'+(n?' checked':'')+' style="width:auto"> '+esc(t[1])+' <small style="color:var(--mut)">('+n+' cari)</small></label>')(db.cariler.filter(c=>t[0]==="yok"?!c.hesap:c.hesap===t[0]).length)).join('')+'</div>'
   +'<label for="t_yil">Cari yılı</label><select id="t_yil"><option value="hepsi">Tüm yıllar</option>'+yillar.map(y=>'<option value="'+y+'"'+(String(cariYilSec)===String(y)?' selected':'')+'>'+y+'</option>').join('')+'</select>'
   +'<label for="t_sifir">Bakiyesi sıfır olan cariler</label><select id="t_sifir"><option value="dahil">Dahil et</option><option value="haric">Hariç tut</option></select>'
   +'<label for="t_oz">Özet sayfası</label><select id="t_oz"><option value="1">Başa özet sayfası ekle</option><option value="0">Özet sayfası olmasın</option></select>'
   +'<label for="t_bas">Başlangıç tarihi (isteğe bağlı)</label><input id="t_bas" type="date"><label for="t_bit">Bitiş tarihi (isteğe bağlı)</label><input id="t_bit" type="date">'
-  +'<p id="t_say" style="color:var(--mut);font-size:12px;margin:8px 0"></p>'
+  +'<p id="t_say" style="color:var(--mut);font-size:12px;margin:8px 0"></p><button class="btn ghost sm" id="t_ata" style="margin-bottom:8px">🏷️ Carilere tür ata (toplu)</button>'
   +'<div class="row end"><button class="btn ghost" id="t_v">Vazgeç</button><button class="btn" id="t_o">📄 PDF Oluştur</button></div></div>';
  m.classList.add('open');
  const sec=()=>{const t=[...document.querySelectorAll('.t_tur:checked')].map(x=>x.value),y=$('#t_yil').value,sf=$('#t_sifir').value==='haric';
@@ -1031,6 +1041,7 @@ function topluEkstreForm(){
  document.querySelectorAll('.t_tur').forEach(x=>x.onchange=()=>{$('#t_hepsi').checked=[...document.querySelectorAll('.t_tur')].every(y=>y.checked);say()});
  $('#t_yil').onchange=say;$('#t_sifir').onchange=say;say();
  $('#t_v').onclick=closeM;
+ $('#t_ata').onclick=topluTurAta;
  $('#t_o').onclick=async()=>{
   const L=sec(),bas=$('#t_bas').value,bit=$('#t_bit').value;
   if(!L.length){toast('Seçime uyan cari yok');return}
