@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.3',SURUM_TARIH='26.11.2026';
+const SURUM='1.3.1',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -2515,6 +2515,77 @@ function kasaSil(id){
  confirmDel(k.virman?'Virman kaydı (iki hareket birlikte) silinsin mi?':'Silinsin mi?',()=>{db.kasa=db.kasa.filter(x=>x.id!==id&&!(k.virman&&k.bag&&x.bag===k.bag))});
 }
 
+/* ---------- Banka hesap ekstresi (PDF) ---------- */
+async function bankaPdf(idler,bas,bit){
+ if(!window.__FR||!window.__FB)throw new Error('Yazı tipi yüklenemedi');
+ const LG=await logoHazirla();
+ const P=pdfYazici(new Yazi(b64bytes(window.__FR)),new Yazi(b64bytes(window.__FB)),LG,true);
+ const L=12,PW=297,PH=210,Rr=285,DARK=[17,17,17],MUT=[110,110,110],OR=[255,122,0],YEL=[255,196,0],GRN=[20,120,80],RED=[190,30,30];
+ const firma=db.ayar.firma||'Firma Adınız',bugun=fd(today());
+ const donem=(bas||bit)?((bas?fd(bas):'başlangıç')+' – '+(bit?fd(bit):bugun)):'Tüm hareketler';
+ const defter=hazineDefter().filter(r=>r.hesap==='banka');
+ const bakS=v=>pn(Math.abs(v))+(v<-0.004?' (−)':'');
+ const ozet=[];let y=0,ad='';
+ const bas0=()=>{P.yeni();y=14;P.yaz(L,12,firma+'  ·  Banka Hesap Ekstresi  ·  '+ad,{boyut:8,renk:MUT})};
+ const tabloBasi=()=>{P.kutu(L,y,Rr-L,7,DARK);const o={f:'B',boyut:8,renk:YEL},sg=Object.assign({hiza:'sag'},o),t=y+4.8;
+  P.yaz(13,t,'Tarih',o);P.yaz(33,t,'Tür',o);P.yaz(78,t,'Cari / Açıklama',o);P.yaz(225,t,'Giriş (₺)',sg);P.yaz(255,t,'Çıkış (₺)',sg);P.yaz(Rr,t,'Bakiye (₺)',sg);y+=7};
+ for(const id of idler){
+  ad=id==='yok'?'Hesap belirtilmemiş':bankaAd(id);if(!ad)continue;const b=bankaListe().find(x=>x.id===id);
+  const tum=defter.filter(r=>id==='yok'?!r.bankaId:r.bankaId===id).sort((a,c)=>String(a.t).localeCompare(String(c.t)));
+  const net=r=>r.yon==='giris'?r.tutar:-r.tutar;
+  const onc=bas?tum.filter(r=>r.t<bas):[],devir=onc.reduce((a,r)=>a+net(r),0);
+  const liste=tum.filter(r=>(!bas||r.t>=bas)&&(!bit||r.t<=bit));
+  const p0=P.adet();
+  P.yeni();P.kutu(0,0,PW,3,OR);
+  let fy=15;if(LG){const lw=42,lh=lw*LG.h/LG.w;P.resim(L,7,lw,lh);fy=7+lh+6.5}
+  P.yaz(L,fy,firma,{f:'B',boyut:LG?12:15});
+  P.yaz(Rr,15,'BANKA HESAP EKSTRESİ',{f:'B',boyut:14,hiza:'sag'});P.yaz(Rr,21,'Düzenleme tarihi: '+bugun,{boyut:8.5,renk:MUT,hiza:'sag'});P.yaz(Rr,25.5,'Dönem: '+donem,{boyut:8.5,renk:MUT,hiza:'sag'});
+  y=Math.max(fy+4,30);P.cizgi(L,y,Rr,y,[220,220,220],0.3);y+=5;
+  const bl=[ad,b&&b.iban?'IBAN / Hesap no: '+b.iban:''].filter(Boolean),h=7+bl.length*5.6;
+  P.kutu(L,y,Rr-L,h,[246,246,246]);P.kutu(L,y,1.2,h,OR);P.yaz(L+5,y+4.6,'BANKA HESABI',{boyut:7,renk:MUT});
+  bl.forEach((t,i)=>P.yaz(L+5,y+10+i*5.2,t,{f:i?'R':'B',boyut:i?9:12,renk:i?[95,95,95]:undefined}));
+  y+=h+6;tabloBasi();
+  let run=bas?devir:0,tg=0,tc=0;
+  const satir=(t,tur,ac,g,c,bk,kalin)=>{const dl=P.sar(ac,'R',8.5,140),hh=Math.max(4.2+(dl.length-1)*4.1,4.2)+2.4;
+   if(y+hh>PH-25){bas0();tabloBasi()}
+   const ty=y+4.2;P.yaz(13,ty,t?fd(t):'',{boyut:8.5});P.yaz(33,ty,P.sar(tur,'R',8.5,42)[0]||'',{boyut:8.5});dl.forEach((l,i)=>P.yaz(78,ty+i*4.1,l,{boyut:8.5}));
+   if(g)P.yaz(225,ty,pn(g),{boyut:8.5,hiza:'sag',renk:GRN});if(c)P.yaz(255,ty,pn(c),{boyut:8.5,hiza:'sag',renk:RED});
+   P.yaz(Rr,ty,bakS(bk),{f:'B',boyut:8.5,hiza:'sag'});y+=hh;P.cizgi(L,y,Rr,y,[232,232,232],0.15)};
+  if(bas&&Math.abs(devir)>0.004)satir(bas,'Devir','Dönem başı bakiyesi',0,0,devir);
+  if(!liste.length&&!(bas&&Math.abs(devir)>0.004)){P.yaz(L+2,y+7,'Seçilen dönemde hareket bulunmuyor.',{boyut:9,renk:MUT});y+=12}
+  liste.forEach(r=>{const g=r.yon==='giris'?r.tutar:0,c=r.yon==='cikis'?r.tutar:0;run+=g-c;tg+=g;tc+=c;
+   satir(r.t,r.tur+(r.taksit?' ('+r.taksit+'. taksit)':''),[r.cari,r.ad,r.kart].filter(Boolean).join(' · '),g,c,run)});
+  if(y+22>PH-25)bas0();
+  y+=5;const bx=Rr-85;let yy=y;
+  if(bas&&Math.abs(devir)>0.004){P.yaz(bx,yy+4,'Devir bakiyesi',{boyut:8.5,renk:MUT});P.yaz(Rr-1.5,yy+4,'₺'+bakS(devir),{boyut:8.5,hiza:'sag'});yy+=5.2}
+  P.yaz(bx,yy+4,'Toplam Giriş',{boyut:8.5,renk:MUT});P.yaz(Rr-1.5,yy+4,'₺'+pn(tg),{boyut:8.5,hiza:'sag'});yy+=5.2;
+  P.yaz(bx,yy+4,'Toplam Çıkış',{boyut:8.5,renk:MUT});P.yaz(Rr-1.5,yy+4,'₺'+pn(tc),{boyut:8.5,hiza:'sag'});yy+=6.5;
+  P.cizgi(bx,yy,Rr,yy,DARK,0.4);yy+=1.5;P.kutu(bx,yy,Rr-bx,9.5,[255,243,222]);P.yaz(bx+2,yy+6.5,'BAKİYE',{f:'B',boyut:9.5});P.yaz(Rr-2,yy+6.5,'₺'+bakS(run),{f:'B',boyut:11,hiza:'sag',renk:run<-0.004?RED:DARK});
+  ozet.push({ad,tg:tg+(bas?Math.max(devir,0):0),tc,run});
+  const n=P.adet()-p0;for(let i=0;i<n;i++){P.sayfa(p0+i);P.cizgi(L,PH-13,Rr,PH-13,[220,220,220],0.2);P.yaz(L,PH-8,firma+'  ·  '+ad+'  ·  Banka Hesap Ekstresi',{boyut:7.5,renk:MUT});P.yaz(Rr,PH-8,'Sayfa '+(i+1)+' / '+n,{boyut:7.5,renk:MUT,hiza:'sag'})}
+ }
+ if(!ozet.length)throw new Error('Banka hesabı bulunamadı');
+ return P.bitir('Banka Hesap Ekstresi');
+}
+function bankaEkstreForm(){
+ const B=bankaListe(),H=hazine(),yokVar=H.bankalar['']&&(H.bankalar[''].giris||H.bankalar[''].cikis);
+ if(!B.length&&!yokVar){toast('Önce banka hesabı oluşturun');return}
+ const m=$('#modal');
+ m.innerHTML='<div class="box"><h3>📄 Banka Hesap Ekstresi (PDF)</h3><p style="color:var(--mut);font-size:13px;margin:8px 0;line-height:1.5">Seçtiğiniz banka hesabının giriş/çıkış hareketleri ve yürüyen bakiyesiyle ekstresi hazırlanır. "Tüm hesaplar" seçilirse her hesap ayrı sayfalarda tek PDF olur.</p>'
+  +'<label for="b_h">Hesap</label><select id="b_h">'+(B.length+(yokVar?1:0)>1?'<option value="hepsi">Tüm hesaplar</option>':'')+B.map(b=>'<option value="'+b.id+'"'+(bankaSec===b.id?' selected':'')+'>'+esc(b.ad)+'</option>').join('')+(yokVar?'<option value="yok">Hesap belirtilmemiş</option>':'')+'</select>'
+  +'<label for="b_bas">Başlangıç tarihi (isteğe bağlı)</label><input id="b_bas" type="date"><label for="b_bit">Bitiş tarihi (isteğe bağlı)</label><input id="b_bit" type="date">'
+  +'<div class="row end"><button class="btn ghost" id="b_v">Vazgeç</button><button class="btn" id="b_o">📄 PDF Oluştur</button></div></div>';
+ m.classList.add('open');$('#b_v').onclick=closeM;
+ $('#b_o').onclick=async()=>{
+  const bas=$('#b_bas').value,bit=$('#b_bit').value,h=$('#b_h').value;
+  if(bas&&bit&&bas>bit){toast('Başlangıç tarihi bitiş tarihinden sonra olamaz');return}
+  const ids=h==='hepsi'?[...B.map(b=>b.id),...(yokVar?['yok']:[])]:[h];
+  const btn=$('#b_o');btn.disabled=true;btn.textContent='Hazırlanıyor…';
+  try{const blob=await bankaPdf(ids,bas,bit),ad='banka-ekstre-'+(h==='hepsi'?'tum-hesaplar':dosyaAdi(h==='yok'?'belirtilmemis':bankaAd(h)))+'-'+today()+'.pdf',r=await dosyaKaydet(blob,ad);closeM();
+   toast(r==='ok'?'PDF kaydedildi: '+ad:r==='iptal'?'Kaydetme iptal edildi':'⚠️ PDF kaydedilemedi. Sayfayı Chrome tarayıcısında açmayı deneyin.',6000)}
+  catch(e){btn.disabled=false;btn.textContent='📄 PDF Oluştur';toast('PDF oluşturulamadı: '+(e&&e.message||e),5000)}
+ };
+}
 /* ---------- Genel kayıt düzenleme ---------- */
 function devirDuzenle(h){
  form('✎ Devir Kaydını Düzenle',[
@@ -2582,7 +2653,7 @@ function pgBankalar(){
  let L=hazineDefter().filter(r=>r.hesap==='banka'&&(!bankaSec||(bankaSec==='yok'?!r.bankaId:r.bankaId===bankaSec)));
  let run=0;L=L.map(r=>{run=run+(r.yon==='giris'?r.tutar:-r.tutar);return {...r,run}}).reverse();
  const tb=(k,l)=>`<button class="${bankaSec===k?'on':''}" onclick="bankaSec='${k}';render()">${l}</button>`;
- return `<div class="top"><h2>🏦 Banka Hesaplarım</h2><div class="row"><button class="btn" onclick="bankaForm()">+ Banka Hesabı</button><button class="btn ghost" onclick="kasaEkle('giris')">+ Para Girişi (Transfer)</button><button class="btn ghost" onclick="kasaEkle('cikis')">− Para Çıkışı</button><button class="btn ghost" onclick="virmanEkle()">🔁 Virman</button></div></div>
+ return `<div class="top"><h2>🏦 Banka Hesaplarım</h2><div class="row"><button class="btn" onclick="bankaForm()">+ Banka Hesabı</button><button class="btn ghost" onclick="kasaEkle('giris')">+ Para Girişi (Transfer)</button><button class="btn ghost" onclick="kasaEkle('cikis')">− Para Çıkışı</button><button class="btn ghost" onclick="virmanEkle()">🔁 Virman</button><button class="btn ghost" onclick="bankaEkstreForm()">📄 Banka Ekstresi (PDF)</button></div></div>
  <div class="card stat" style="margin-bottom:12px"><small>TOPLAM BANKA (tüm hesaplar)</small><b class="${clr(h.banka.bakiye)}" style="font-size:28px">${fmt(h.banka.bakiye)}</b><small style="margin-top:4px">Giriş ${fmt(h.banka.giris)} · Çıkış ${fmt(h.banka.cikis)}</small></div>
  ${B.length?`<div class="grid g2" style="margin-bottom:12px">${B.map(b=>kart(b.id,b.ad,b.iban,h.bankalar[b.id],`<div style="display:flex;gap:6px;margin-top:6px" onclick="event.stopPropagation()"><button class="btn ghost sm" onclick="bankaForm('${b.id}')">✎ Düzenle</button><button class="btn dng sm" onclick="bankaSil('${b.id}')">✕</button></div>`)).join('')}${yokVar?kart('yok','Hesap belirtilmemiş','Banka seçilmeden girilen hareketler',yok):''}</div>`:'<div class="empty" style="margin-bottom:12px">Henüz banka hesabı yok. "+ Banka Hesabı" ile oluşturun; sonra havale, kredi kartı, çek tahsilatı ve transferlerde hangi hesaba işleneceğini seçebilirsiniz.</div>'}
  <div class="tabs" style="margin-bottom:10px">${tb('','Tümü')}${B.map(b=>tb(b.id,esc(b.ad))).join('')}${yokVar&&B.length?tb('yok','Belirtilmemiş'):''}</div>
