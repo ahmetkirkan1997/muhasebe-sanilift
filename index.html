@@ -655,7 +655,7 @@ function bilgiSatir(P,x,y,l,boyut,deger){
   P.yaz(cx,y,p,{boyut,renk:bas?LAB:deger});cx+=P.olc(p,'R',boyut);
  });
 }
-function firmaSatirlari(a){a=a||db.ayar;return [[a.vdairesi&&('Vergi Dairesi: '+a.vdairesi),a.vergi&&('Vergi No: '+a.vergi)].filter(Boolean).join('   '),a.tel&&('Tel: '+a.tel),a.eposta&&('E-posta: '+a.eposta),a.adres].filter(Boolean)}
+function firmaSatirlari(a){a=a||db.ayar;return [[a.vdairesi&&('Vergi Dairesi: '+a.vdairesi),a.vergi&&('Vergi No: '+a.vergi)].filter(Boolean).join('   '),a.tel&&('Tel: '+a.tel),a.eposta&&('E-posta: '+a.eposta),a.adres&&('Adres: '+a.adres)].filter(Boolean)}
 function firmaKaydet(){db.ayar={...db.ayar,firma:$('#s_firma').value.trim(),vdairesi:$('#s_vd').value.trim(),vergi:$('#s_vno').value.trim(),tel:$('#s_tel').value.trim(),eposta:$('#s_eposta').value.trim(),adres:$('#s_adres').value.trim(),kdv:parseFloat($('#s_kdv').value)||0};save();toast('Kaydedildi ✓')}
 function pgAyarlar(){
  const a=db.ayar,s=lsGet(BKEY),onc=lsGet(PKEY);
