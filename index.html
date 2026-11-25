@@ -306,7 +306,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.2.1',SURUM_TARIH='25.11.2026';
+const SURUM='1.2.2',SURUM_TARIH='25.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -863,7 +863,7 @@ async function ekstrePdf(id,bas,bit,cekGoster){
   P.yaz(Rr,25.5,'Dönem: '+donem,{boyut:8.5,renk:MUT,hiza:'sag'});
   if(c.yil)P.yaz(Rr,30,'Cari yılı: '+c.yil,{boyut:8.5,renk:MUT,hiza:'sag'});
   y=Math.max(yy,28)+2;P.cizgi(L,y,Rr,y,[220,220,220],0.3);y+=5;
-  const sat=bilgiDiz(P,[c.vdairesi&&('Vergi Dairesi: '+c.vdairesi),c.vergi&&('Vergi No / TC: '+c.vergi),c.tel&&('Tel: '+c.tel),c.eposta&&('E-posta: '+c.eposta),c.adres&&('Adres: '+c.adres)],Rr-L-10);
+  const sat=bilgiDiz(P,[c.hesap&&('Hesap: '+hesapAd(c.hesap)),c.vdairesi&&('Vergi Dairesi: '+c.vdairesi),c.vergi&&('Vergi No / TC: '+c.vergi),c.tel&&('Tel: '+c.tel),c.eposta&&('E-posta: '+c.eposta),c.adres&&('Adres: '+c.adres)],Rr-L-10);
   const adL=P.sar(c.ad,'B',12,Rr-L-10),h=11+adL.length*5.4+sat.length*4.4;
   P.kutu(L,y,Rr-L,h,[246,246,246]);P.kutu(L,y,1.2,h,OR);
   P.yaz(L+5,y+4.6,'SAYIN',{boyut:7,renk:MUT});
@@ -1493,7 +1493,7 @@ function tumVeriXlsx(){
   const bek=t=>'SUMIFS('+rg('J')+','+rg('M')+',"Bekliyor",'+rg('K')+',"'+t+'")';
   const ust=[
    {baslik:'CARİ: '+cariEtiket(c)+' — hareketler, çek/senetler ve bakiye'},
-   ['','',[c.vdairesi&&('V.D. '+c.vdairesi),c.vergi&&('Vergi No: '+c.vergi),c.tel,c.eposta,c.adres].filter(Boolean).join(' · ')],
+   ['','',[c.hesap&&('Hesap: '+hesapAd(c.hesap)),c.vdairesi&&('V.D. '+c.vdairesi),c.vergi&&('Vergi No: '+c.vergi),c.tel,c.eposta,c.adres].filter(Boolean).join(' · ')],
    ['','',XB('Satış toplamı'),F(sum('Satış'),2,r2(V.Satış))],
    ['','',XB('Alış toplamı'),F(sum('Alış'),2,r2(V.Alış))],
    ['','',XB('Tahsilat toplamı (nakit/havale/kart/çek)'),F(sum('Tahsilat'),2,r2(V.Tahsilat))],
@@ -1930,7 +1930,7 @@ function aramaIndeks(){
  const I=[],cAd=id=>{const c=db.cariler.find(x=>x.id===id);return c?cariEtiket(c):''};
  const tn={alis:'Alış',satis:'Satış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Devir (açılış)',devirk:'Devir (kapanış)'};
  db.cariler.forEach(c=>{const b=bakiye(c.id),alt=[c.vdairesi&&('V.D. '+c.vdairesi),c.vergi&&('Vergi No: '+c.vergi),c.tel,c.eposta,c.adres].filter(Boolean).join(' · ');
-  I.push({g:'cari',baslik:cariEtiket(c),alt,tutar:b.net,renk:b.net<0?'red':'green',tarih:'',metin:[c.ad,c.yil,c.vdairesi,c.vergi,c.tel,c.eposta,c.adres,'cari'].join(' '),git(){go('cari/'+c.id)}})});
+  I.push({g:'cari',baslik:cariEtiket(c),alt,tutar:b.net,renk:b.net<0?'red':'green',tarih:'',metin:[c.ad,c.yil,c.hesap,hesapAd(c.hesap),c.vdairesi,c.vergi,c.tel,c.eposta,c.adres,'cari'].join(' '),git(){go('cari/'+c.id)}})});
  db.hareketler.forEach(h=>{const t=tot(h),ca=cAd(h.cariId),p=h.tip==='alis'||h.tip==='satis',tip=tn[h.tip]||h.tip;
   const alt=[ca,fd(h.tarih),odemeEtiket(h),h.fatura&&('Fatura: '+h.fatura),h.kart,p?h.adet+' adet':''].filter(Boolean).join(' · ');
   I.push({g:'hareket',baslik:tip+(h.urun||h.aciklama?' · '+(h.urun||h.aciklama):''),alt,tutar:t,renk:(h.tip==='alis'||h.tip==='odeme')?'red':'green',tarih:h.tarih,
@@ -2001,12 +2001,15 @@ function pgCariler(){
 function cariListe(list){
  if(!list.length)return '<div class="empty">Cari bulunamadı.</div>';
  return list.map(c=>{const b=bakiye(c.id);return `<div class="card cari" onclick="go('cari/${c.id}')">
-  <div><h3>${esc(c.ad)} <span class="tag t-devira" style="font-size:11px;vertical-align:middle">${esc(c.yil)}</span></h3><small>${esc([c.tel,c.eposta].filter(Boolean).join(' · '))}</small><div style="margin-top:6px;font-size:12px"><span class="green">Alacak: ${fmt(b.alacak)}</span> · <span class="${b.verecek>0?'red':'green'}">Verecek: ${fmt(b.verecek)}</span></div></div>
+  <div><h3>${esc(c.ad)} <span class="tag t-devira" style="font-size:11px;vertical-align:middle">${esc(c.yil)}</span>${c.hesap?` <span class="tag" style="font-size:11px;vertical-align:middle">${esc(c.hesap)}</span>`:''}</h3><small>${esc([c.tel,c.eposta].filter(Boolean).join(' · '))}</small><div style="margin-top:6px;font-size:12px"><span class="green">Alacak: ${fmt(b.alacak)}</span> · <span class="${b.verecek>0?'red':'green'}">Verecek: ${fmt(b.verecek)}</span></div></div>
   <div class="r"><small>Genel Toplam</small><br><b class="${clr(b.net)}" style="font-size:18px">${fmt(b.net)}</b></div></div>`}).join('');
 }
 function aramaYap(){$('#cl').innerHTML=cariListe(cariFiltre())}
+const HESAPLAR=[['','Belirtilmemiş'],['120','120 – Alıcılar (müşteri)'],['320','320 – Satıcılar (tedarikçi)'],['131','131 – Ortaklardan Alacaklar'],['331','331 – Ortaklara Borçlar'],['136','136 – Diğer Çeşitli Alacaklar'],['336','336 – Diğer Çeşitli Borçlar'],['335','335 – Personele Borçlar'],['159','159 – Verilen Sipariş Avansları'],['340','340 – Alınan Sipariş Avansları']];
+const hesapAd=k=>{const h=HESAPLAR.find(x=>x[0]===String(k||''));return h&&h[0]?h[1]:''};
 function cariAlanlari(c){c=c||{};return[
  {name:'ad',label:'Şirket / Kişi Adı',value:c.ad,req:1},
+ {name:'hesap',label:'Cari Türü / Hesap Kodu',type:'select',value:c.hesap||'',options:HESAPLAR},
  {name:'vdairesi',label:'Vergi Dairesi',value:c.vdairesi},
  {name:'vergi',label:'Vergi No / TC',value:c.vergi},
  {name:'tel',label:'Telefon',type:'tel',value:c.tel},
@@ -2025,7 +2028,7 @@ function yeniYilCari(id){
   {name:'yil',label:'Yeni cari yılı',type:'number',value:yil0,req:1},
   {name:'devir',label:'Önceki cari bakiyesi',type:'select',value:Math.abs(b.net)>0.004?'evet':'hayir',options:[['evet','Yeni cariye devret (eski cari sıfırlanır)'],['hayir','Devretme, sıfırdan başla']]}
  ],o=>{
-  const n={ad:c.ad,vdairesi:c.vdairesi||'',vergi:c.vergi||'',tel:c.tel||'',eposta:c.eposta||'',adres:c.adres||'',yil:o.yil};
+  const n={ad:c.ad,hesap:c.hesap||'',vdairesi:c.vdairesi||'',vergi:c.vergi||'',tel:c.tel||'',eposta:c.eposta||'',adres:c.adres||'',yil:o.yil};
   yilKontrol(n);
   const y={id:uid(),...n};db.cariler.push(y);
   if(o.devir==='evet'&&Math.abs(b.net)>0.004){
@@ -2048,7 +2051,7 @@ function pgCari(id){
  const cs=db.cekler.filter(x=>x.cariId===id);
  const hc=hs.map(h=>({tarih:h.tarih,h})).concat(cs.map(c=>({tarih:c.tarih,c}))).sort((a,b)=>b.tarih.localeCompare(a.tarih));
  const tn={alis:'Alış',satis:'Satış',odeme:'Ödeme',tahsilat:'Tahsilat',devira:'Devir (açılış)',devirk:'Devir (kapanış)'};
- return `<div class="top"><div><a href="javascript:void(0)" onclick="go('cariler')" style="color:var(--mut);text-decoration:none;font-size:13px">← Cariler</a><h2>${esc(c.ad)} <span class="tag t-devira" style="font-size:12px;vertical-align:middle">${esc(c.yil)}</span></h2><small style="color:var(--mut);display:block;line-height:1.6">${cariIletisim(c)}</small></div>
+ return `<div class="top"><div><a href="javascript:void(0)" onclick="go('cariler')" style="color:var(--mut);text-decoration:none;font-size:13px">← Cariler</a><h2>${esc(c.ad)} <span class="tag t-devira" style="font-size:12px;vertical-align:middle">${esc(c.yil)}</span>${c.hesap?` <span class="tag" style="font-size:12px;vertical-align:middle" title="${esc(hesapAd(c.hesap))}">${esc(c.hesap)}</span>`:''}</h2><small style="color:var(--mut);display:block;line-height:1.6">${cariIletisim(c)}</small></div>
  <div class="row"><button class="btn ghost sm" onclick="cariDuzenle('${id}')">Düzenle</button><button class="btn dng sm" onclick="cariSil('${id}')">Sil</button></div></div>
  <div class="grid g3">
   <div class="card stat"><small>ALACAK (bize borçlu)</small><b class="green">${fmt(b.alacak)}</b>${b.fazlaOde>0.004?`<small style="margin-top:4px">dahil: ${fmt(b.fazlaOde)} fazla ödeme</small>`:''}</div>
