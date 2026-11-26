@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.3.7',SURUM_TARIH='26.11.2026';
+const SURUM='1.3.8',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -443,7 +443,8 @@ function pgHesap(){
 function baslat(){db=DEF();document.querySelectorAll('img.lg').forEach(i=>i.src=LOGO_SRC);girisGoster()}
 /* ---------- Router ---------- */
 let ROUTE=((location.hash||'#panel').slice(1))||'panel';
-function go(r){ROUTE=r;try{history.replaceState(null,'','#'+r)}catch(e){}render()}
+let sonRota='';
+function go(r){sonRota='';ROUTE=r;try{history.replaceState(null,'','#'+r)}catch(e){}render()}
 function menuAc(){$('#nav').classList.toggle('acik')}
 function render(){
  if(!OTURUM)return;
@@ -451,7 +452,7 @@ function render(){
  const r=ROUTE.split('/');
  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===(r[0]==='cari'?'cariler':r[0])));
  {const mb=$('#menubtn');if(mb)mb.classList.toggle('on',!!document.querySelector('nav a.ek.on'))}
- const A=$('#app');
+ const A=$('#app'),ky=window.scrollY;
  try{
   if(r[0]==='cariler')A.innerHTML=pgCariler();
   else if(r[0]==='cari')A.innerHTML=pgCari(r[1]);
@@ -464,7 +465,8 @@ function render(){
   else if(r[0]==='teklif'){A.innerHTML=pgTeklif();initTeklif()}
   else A.innerHTML=pgPanel();
  }catch(err){A.innerHTML='<div class="card"><h3 class="red">Bir hata oluştu</h3><p style="margin-top:8px">'+esc(err.message)+'</p><button class="btn" style="margin-top:12px" onclick="go(\'panel\')">Panele dön</button></div>'}
- window.scrollTo(0,0);
+ if(ROUTE===sonRota)window.scrollTo(0,ky);else window.scrollTo(0,0);
+ sonRota=ROUTE;
  if(vurguId){const id=vurguId;vurguId=null;setTimeout(()=>{const el=document.querySelector('[data-rid="'+id+'"]');if(el){el.scrollIntoView({block:'center'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),2600)}},60)}
 }
 let vurguId=null;
