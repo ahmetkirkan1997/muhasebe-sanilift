@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.3.6',SURUM_TARIH='26.11.2026';
+const SURUM='1.3.7',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -1009,14 +1009,14 @@ function ekstreForm(id){
 }
 
 /* ---------- Carilere toplu tür atama ---------- */
-function topluTurAta(){
+function topluTurAta(sayfadan){
  const L=db.cariler.slice().sort((a,b)=>a.ad.localeCompare(b.ad,'tr')),m=$('#modal');
  m.innerHTML='<div class="box"><h3>🏷️ Carilere Tür Ata</h3><p style="color:var(--mut);font-size:13px;margin:8px 0;line-height:1.5">Her carinin türünü (120, 320...) seçin; sonra Kaydet\'e basın.</p><div style="max-height:55vh;overflow:auto;margin:6px 0">'
   +L.map(c=>'<div style="display:flex;gap:8px;align-items:center;margin:6px 0"><span style="flex:1;min-width:0;overflow-wrap:anywhere">'+esc(cariEtiket(c))+'</span><select data-cid="'+c.id+'" style="flex:1;min-width:0">'+HESAPLAR.map(h=>'<option value="'+h[0]+'"'+((c.hesap||'')===h[0]?' selected':'')+'>'+esc(h[1])+'</option>').join('')+'</select></div>').join('')
   +'</div><div class="row end"><button class="btn ghost" id="ta_v">Vazgeç</button><button class="btn" id="ta_k">Kaydet</button></div></div>';
  m.classList.add('open');
- $('#ta_v').onclick=()=>topluEkstreForm();
- $('#ta_k').onclick=()=>{document.querySelectorAll('#modal select[data-cid]').forEach(e=>{const c=db.cariler.find(x=>x.id===e.dataset.cid);if(c){if(e.value)c.hesap=e.value;else delete c.hesap}});save();render();toast('Cari türleri kaydedildi ✓');topluEkstreForm()};
+ $('#ta_v').onclick=()=>sayfadan?closeM():topluEkstreForm();
+ $('#ta_k').onclick=()=>{document.querySelectorAll('#modal select[data-cid]').forEach(e=>{const c=db.cariler.find(x=>x.id===e.dataset.cid);if(c){if(e.value)c.hesap=e.value;else delete c.hesap}});save();render();toast('Cari türleri kaydedildi ✓');if(sayfadan)closeM();else topluEkstreForm()};
 }
 /* ---------- Toplu cari ekstresi (tek PDF) ---------- */
 function topluEkstreForm(){
@@ -1041,7 +1041,7 @@ function topluEkstreForm(){
  document.querySelectorAll('.t_tur').forEach(x=>x.onchange=()=>{$('#t_hepsi').checked=[...document.querySelectorAll('.t_tur')].every(y=>y.checked);say()});
  $('#t_yil').onchange=say;$('#t_sifir').onchange=say;say();
  $('#t_v').onclick=closeM;
- $('#t_ata').onclick=topluTurAta;
+ $('#t_ata').onclick=()=>topluTurAta(false);
  $('#t_o').onclick=async()=>{
   const L=sec(),bas=$('#t_bas').value,bit=$('#t_bit').value;
   if(!L.length){toast('Seçime uyan cari yok');return}
@@ -2104,7 +2104,7 @@ function pgCariler(){
  if(yilDoldur())save();
  if(cariYilSec!=='hepsi'&&!cariYillari().includes(cariYilSec))cariYilSec=String(buYil());
  const tb=(k,l)=>`<button class="${cariYilSec===k?'on':''}" onclick="cariYilSec='${k}';render()">${l}</button>`;
- return `<div class="top"><h2>🏢 Cariler</h2><div class="row"><button class="btn ghost" onclick="topluEkstreForm()">📄 Tüm Cari Ekstreleri</button><button class="btn" onclick="yeniCari()">+ Yeni Cari</button></div></div>
+ return `<div class="top"><h2>🏢 Cariler</h2><div class="row"><button class="btn ghost" onclick="topluEkstreForm()">📄 Tüm Cari Ekstreleri</button><button class="btn ghost" onclick="topluTurAta(true)">🏷️ Tür Ata</button><button class="btn" onclick="yeniCari()">+ Yeni Cari</button></div></div>
  <div class="tabs" style="margin-bottom:12px">${cariYillari().map(y=>tb(y,y)).join('')}${tb('hepsi','Tümü')}</div>
  <div class="row" style="margin-bottom:12px;flex-wrap:nowrap"><input id="cari_ara" placeholder="Cari ara (isim veya kod: 120, 320...)" value="${esc(arama)}" oninput="arama=this.value;aramaYap()" style="flex:2;min-width:0"><select onchange="cariHesapSec=this.value;aramaYap()" style="flex:1;min-width:0"><option value="">Tüm türler</option>${HESAPLAR.filter(h=>h[0]).map(h=>`<option value="${h[0]}"${cariHesapSec===h[0]?' selected':''}>${esc(h[1])}</option>`).join('')}<option value="yok"${cariHesapSec==='yok'?' selected':''}>Türü belirtilmemiş</option></select></div>
  <div class="row" style="margin-bottom:12px"><select onchange="cariSirala=this.value;aramaYap()" aria-label="Sıralama" style="flex:1;min-width:0">${CARI_SIRA.map(x=>`<option value="${x[0]}"${cariSirala===x[0]?' selected':''}>↕ ${esc(x[1])}</option>`).join('')}</select></div>
