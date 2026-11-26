@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.3.8',SURUM_TARIH='26.11.2026';
+const SURUM='1.3.9',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -492,7 +492,7 @@ function pgPanel(){
   <div class="card stat"><small>Verecek Çek/Senet (bekleyen)</small><b class="red">${fmt(c.verecek)}</b></div>
   <div class="card stat" style="cursor:pointer" onclick="go('hazine')"><small>💵 Kasadaki Nakit</small><b class="${clr(h.kasa.bakiye)}">${fmt(h.kasa.bakiye)}</b></div>
   <div class="card stat" style="cursor:pointer" onclick="go('bankalar')"><small>🏦 Bankadaki Nakit (tüm hesaplar)</small><b class="${clr(h.banka.bakiye)}">${fmt(h.banka.bakiye)}</b></div>
-  ${(()=>{const tb=taksitBekleyen(),net=h.bakiye+g.alacak+c.alacak+tb.giris-g.verecek-c.verecek-tb.cikis;return `<div class="card stat " style="grid-column:1/-1;cursor:pointer" onclick="go('hazine')"><small>${KASA_IKON} ${net<0?'VERECEK (varlıklar borcu karşılamıyor)':'GENEL HAZİNE (nakit + alacaklar − borçlar)'}</small><b class="${net<0?'red':'green'}" style="font-size:28px">${net<0?'Verecek: '+fmt(Math.abs(net)):'Genel Hazine: '+fmt(net)}</b><small style="margin-top:6px">Kasadaki nakit: ${fmt(h.bakiye)} · Detay için dokun</small></div>`})()}
+  ${(()=>{const tb=taksitBekleyen(),net=h.bakiye+g.alacak+c.alacak+tb.giris-g.verecek-c.verecek-tb.cikis;return `<div class="card stat " style="grid-column:1/-1;cursor:pointer" onclick="go('hazine')"><small>${KASA_IKON} ${net<0?'VERECEK (varlıklar borcu karşılamıyor)':'GENEL HAZİNE (nakit + alacaklar − borçlar)'}</small><b class="${net<0?'red':'green'}" style="font-size:28px">${net<0?'Verecek: '+fmt(Math.abs(net)):'Genel Hazine: '+fmt(net)}</b><small style="margin-top:6px">Toplam Nakit (Kasa + Banka): ${fmt(h.bakiye)} · Detay için dokun</small></div>`})()}
  </div>
  <div class="top" style="margin-top:22px"><h3>Hızlı İşlemler</h3></div>
  <div class="row"><button class="btn" onclick="yeniCari()">+ Yeni Cari</button><button class="btn ghost" onclick="go('cariler')">Carilere Git</button><button class="btn ghost" onclick="go('teklif')">Teklif Hazırla</button></div>
