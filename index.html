@@ -312,7 +312,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.8.0',SURUM_TARIH='26.11.2026';
+const SURUM='1.8.1',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -1226,7 +1226,7 @@ async function hazinePdf(bolumler,bas,bit,dosyaBaslik){
   const kol=vergi?[{b:'Tarih',x:13.5,w:19},{b:sgk?'Prim türü':'Vergi türü',x:33,w:40},{b:'Açıklama / dönem',x:75,w:48},{b:'Ödeme',x:125,w:34},{b:'Tutar (₺)',x:196.5,w:30,r:true}]:maas?[{b:'Tarih',x:13.5,w:19},{b:'Personel',x:33,w:36},{b:'Açıklama',x:71,w:52},{b:'Ödeme',x:125,w:34},{b:'Tutar (₺)',x:196.5,w:30,r:true}]:[{b:'Tarih',x:13.5,w:19},{b:'Açıklama',x:33,w:88},{b:'Ödeme',x:125,w:34},{b:'Tutar (₺)',x:196.5,w:30,r:true}];
   const kisi={},pkis={};let top=0;
   const sat=G.map(k=>{top+=k.tutar;if(sgk&&k.kisi)pkis[k.kisi]=(pkis[k.kisi]||0)+k.tutar;if(maas){const a=k.kisi||'(belirtilmemiş)';kisi[a]=(kisi[a]||0)+k.tutar}if(vergi){const a=gAn(k);kisi[a]=(kisi[a]||0)+k.tutar}
-   const od=[giderYontem(k)==='Kasadaki nakit'?'Kasadaki nakit':hesapEt(k)+' · '+YONTEM_KISA[yontemOf(k)],k.kart&&{s:k.kart,boyut:7.5,renk:MUT},k.taksit&&k.taksit.n>1&&{s:k.taksit.n+' taksit',boyut:7.5,renk:MUT}];
+   const od=[giderYontem(k)==='Kasadan ödendi'?'Kasadan ödendi':hesapEt(k)+' · '+YONTEM_KISA[yontemOf(k)],k.kart&&{s:k.kart,boyut:7.5,renk:MUT},k.taksit&&k.taksit.n>1&&{s:k.taksit.n+' taksit',boyut:7.5,renk:MUT}];
    return vergi?[fd(k.tarih),sgk&&k.kisi?[gAn(k),{s:k.kisi,boyut:7.5,renk:MUT}]:gAn(k),k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]:maas?[fd(k.tarih),k.kisi||'-',k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]:[fd(k.tarih),k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]});
   tablo(kol,sat,'Seçilen dönemde '+(maas?'maaş':sgk?'SGK prim':vergi?'vergi':'genel')+' gideri bulunmuyor.');
   const o=[];
@@ -2504,8 +2504,8 @@ let giderTur='hepsi',giderAy='hepsi';
 const GIDER_AD={genel:'Genel Gider',maas:'Maaş Gideri',sgk:'SGK Prim Ödemesi',vergi:'Vergi Gideri',diger:'Diğer Çıkış'};
 const SGK_TURLERI=['SGK primi (işçi + işveren)','Bağ-Kur primi','İşsizlik sigortası','SGK yapılandırma taksiti','Diğer SGK ödemesi'];
 const grupAnahtar=k=>k.sgkTur||k.vergiTur||'';
-const giderYontem=k=>hesapOf(k)==='kasa'&&yontemOf(k)==='nakit'?'Kasadaki nakit':YONTEM_KISA[yontemOf(k)];
-const giderOdeme=k=>hesapOf(k)==='kasa'&&(k.odeme||'nakit')==='nakit'?'Kasadaki nakit':odemeEtiket(k);
+const giderYontem=k=>hesapOf(k)==='kasa'&&yontemOf(k)==='nakit'?'Kasadan ödendi':YONTEM_KISA[yontemOf(k)];
+const giderOdeme=k=>hesapOf(k)==='kasa'&&(k.odeme||'nakit')==='nakit'?'Kasadan ödendi':odemeEtiket(k);
 const giderAd=k=>k.gider==='sgk'&&k.sgkTur==='Bağ-Kur primi'?'Bağ-Kur Ödemesi':GIDER_AD[giderTuru(k)];
 function personelListe(){db.personel=db.personel||[];const m={};db.personel.forEach(p=>{m[p.ad]={ad:p.ad,sahip:!!p.sahip}});db.kasa.forEach(k=>{if(k.kisi&&(k.gider==='maas'||k.gider==='sgk')&&!m[k.kisi])m[k.kisi]={ad:k.kisi,sahip:false}});return Object.values(m).sort((a,b)=>a.ad.localeCompare(b.ad,'tr'))}
 function personelKaydet(ad,sahip){db.personel=db.personel||[];const p=db.personel.find(x=>x.ad===ad);if(p)p.sahip=!!sahip;else db.personel.push({ad,sahip:!!sahip})}
