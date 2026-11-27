@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.4.2',SURUM_TARIH='26.11.2026';
+const SURUM='1.5.0',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -1167,6 +1167,9 @@ async function hazinePdf(bolumler,bas,bit,dosyaBaslik){
   });
   tablo(kol,sat,'Seçilen dönemde hareket bulunmuyor.');
   const oz=[];if(bas&&Math.abs(devir)>0.004)oz.push(['Devir bakiyesi','₺'+bakS(devir)]);oz.push(['Toplam Giriş','₺'+pn(tg),GRN],['Toplam Çıkış','₺'+pn(tc),RED]);
+  if(tumMu){const hs={};E.forEach(r=>{if(bit&&r.t>bit)return;const k=r.hesap==='banka'?'b:'+(r.bankaId||''):'kasa';hs[k]=(hs[k]||0)+(r.yon==='giris'?r.tutar:-r.tutar)});
+   const ks=Object.keys(hs).sort((a,b)=>a==='kasa'?-1:b==='kasa'?1:a.localeCompare(b));
+   if(ks.length>1){oz.push(['— Hesap bazında bakiye —','']);ks.forEach(k=>{const v=yuvarla(hs[k]);oz.push([k==='kasa'?'   Kasa (nakit)':'   '+(k==='b:'?'Banka (hesap belirtilmemiş)':bankaAd(k.slice(2))),'₺'+bakS(v),v<-0.004?RED:undefined])})}}
   ozetKutusu(oz,[tumMu?'TOPLAM NAKİT':'BAKİYE','₺'+bakS(run),run<-0.004?RED:DARK]);
  }
  /* ---- kredi kartı ---- */
@@ -1373,6 +1376,10 @@ function hazineXlsx(bolumler,bas,bit){
   });
   sat.push(['','','','','','','','','',XMK(tg),XMK(tc),XMK(run)]);
   sat[sat.length-1][0]=XT('TOPLAM / BAKİYE');
+  if(tumMu){const hs={};E.forEach(r=>{if(bit&&r.t>bit)return;const k=r.hesap==='banka'?'b:'+(r.bankaId||''):'kasa';hs[k]=(hs[k]||0)+(r.yon==='giris'?r.tutar:-r.tutar)});
+   const ks=Object.keys(hs).sort((a,b)=>a==='kasa'?-1:b==='kasa'?1:a.localeCompare(b));
+   if(ks.length>1){sat.push(['','','','','','','','','','','','']);sat.push([XT('Hesap bazında bakiye'),'','','','','','','','','','','']);
+    ks.forEach(k=>sat.push([XT(k==='kasa'?'Kasa (nakit)':k==='b:'?'Banka (hesap belirtilmemiş)':bankaAd(k.slice(2))),'','','','','','','','','','',XM(yuvarla(hs[k]))]))}}
   return{ad,kol:[{b:'Tarih',w:12},{b:'Tür',w:18},{b:'Hesap',w:12},{b:'Yöntem',w:13},{b:'Cari / Kişi',w:26},{b:'Açıklama',w:34},{b:'Kart / Banka',w:16},{b:'Taksit',w:10},{b:'Fatura',w:12},{b:'Giriş (₺)',w:14},{b:'Çıkış (₺)',w:14},{b:'Bakiye (₺)',w:14}],satir:sat};
  }
  function kartS(ad){
@@ -2202,6 +2209,16 @@ function pgCari(id){
  </table></div>`:'<div class="empty">Henüz hareket yok.</div>'}`;
 }
 function cariSil(id){confirmDel('Bu cari ve tüm hareketleri silinsin mi?',()=>{db.cariler=db.cariler.filter(c=>c.id!==id);db.hareketler=db.hareketler.filter(h=>h.cariId!==id);db.belgeler=(db.belgeler||[]).filter(b=>b.cariId!==id);db.cekler.forEach(c=>{if(c.cariId===id)c.cariId=''});ROUTE='cariler'})}
+/* Mükerrer fatura no uyarısı: aynı cari + aynı fatura no + aynı tarih = aynı faturanın kalemleri (uyarı yok) */
+function faturaCakisma(cariId,no,tarih,haric){
+ const k=String(no||'').trim().toLowerCase();if(!k)return '';
+ const L=db.hareketler.filter(h=>(h.tip==='alis'||h.tip==='satis')&&h.id!==haric&&String(h.fatura||'').trim().toLowerCase()===k);
+ const baska=L.find(h=>h.cariId!==cariId);
+ if(baska)return '"'+no+'" numaralı fatura başka bir carinin ('+cariAd(baska.cariId)+') kaydında da var. Yine de kaydedilsin mi?';
+ const gun=L.find(h=>String(h.tarih).slice(0,10)!==String(tarih).slice(0,10));
+ if(gun)return '"'+no+'" numaralı fatura bu carinin '+fd(gun.tarih)+' tarihli kaydında da var; bu kayıt farklı bir tarihte. Yine de kaydedilsin mi?';
+ return '';
+}
 function hareketEkle(cariId,tip,d){
  const E=d?'✎ Düzenle: ':'';
  if(tip==='alis'||tip==='satis'){
@@ -2213,7 +2230,11 @@ function hareketEkle(cariId,tip,d){
    {name:'birim',label:'Birim Fiyat (yukarıda seçtiğiniz türe göre)',type:'number',value:d?(d.fiyatDahil&&d.birimDahil!=null?d.birimDahil:d.birim):''},
    {name:'kdv',label:'KDV %',type:'number',value:d?d.kdv:db.ayar.kdv},
    {name:'fatura',label:'Fatura No',value:d?d.fatura||'':''}
-  ],o=>{const x={...o};if(x.fiyatTur==='dahil'){x.birimDahil=x.birim;x.birim=yuv(x.birim/(1+x.kdv/100));x.fiyatDahil=true}delete x.fiyatTur;eskiKaldir(d);db.hareketler.push({id:d?d.id:uid(),cariId,tip,...x});save()},
+  ],o=>{const x={...o};if(x.fiyatTur==='dahil'){x.birimDahil=x.birim;x.birim=yuv(x.birim/(1+x.kdv/100));x.fiyatDahil=true}delete x.fiyatTur;
+   const yaz=()=>{eskiKaldir(d);db.hareketler.push({id:d?d.id:uid(),cariId,tip,...x});save()};
+   const uy=faturaCakisma(cariId,x.fatura,x.tarih,d&&d.id);
+   if(uy){ask(uy,'Yine de kaydet').then(r=>{if(r){yaz();render()}});return}
+   yaz()},
   {prev:o=>{const q=hsap({adet:o.adet,kdv:o.kdv,birim:o.birim,fiyatDahil:o.fiyatTur==='dahil',birimDahil:o.fiyatTur==='dahil'?o.birim:null}),ara=q.ara,k=q.kv;return `<div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV Hariç Tutar</span><b style="color:#fff">${fmt(ara)}</b></div><div style="display:flex;justify-content:space-between;padding:3px 0"><span>KDV (%${o.kdv})</span><b class="yel">${fmt(k)}</b></div><div style="display:flex;justify-content:space-between;padding:6px 0 0;margin-top:4px;border-top:1px solid #ffffff22"><span>GENEL TOPLAM</span><b class="green" style="font-size:20px">${fmt(q.top)}</b></div>`}});
  }else{
   form(E+(tip==='odeme'?'Ödeme Yaptım (Verecekten düşer)':'Tahsilat Aldım (Alacaktan düşer)'),[
@@ -2654,6 +2675,34 @@ function kayitSil(id){
 }
 /* ---------- Banka hesapları ---------- */
 let bankaSec='';
+/* ---------- Banka mutabakatı ---------- */
+function mutParse(txt){
+ const out=[];String(txt||'').split(/\r?\n/).forEach(ln=>{ln=ln.trim();if(!ln)return;
+  const dm=ln.match(/(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})|(\d{4})-(\d{2})-(\d{2})/);if(!dm)return;
+  const t=dm[4]?dm[4]+'-'+dm[5]+'-'+dm[6]:dm[3]+'-'+String(dm[2]).padStart(2,'0')+'-'+String(dm[1]).padStart(2,'0');
+  const rest=ln.replace(dm[0],' ');const nm=[...rest.matchAll(/[-+]?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|[-+]?\d+(?:,\d{1,2})?/g)].map(m=>m[0]).filter(x=>/\d/.test(x));
+  if(!nm.length)return;const v=nm[0];const n=parseFloat(v.replace(/\./g,'').replace(',','.'));if(!isFinite(n)||!n)return;
+  out.push({t,yon:n<0?'cikis':'giris',tutar:yuvarla(Math.abs(n)),ad:rest.replace(v,'').replace(/[;\t]+/g,' ').trim()})});
+ return out}
+function mutabakatForm(){
+ const B=bankaListe();
+ const m=$('#modal');m.innerHTML=`<div class="box"><h3>🔍 Banka Mutabakatı</h3><p style="color:var(--mut);font-size:13px;line-height:1.5;margin:8px 0">Banka ekstrenizdeki hareketleri her satıra bir hareket olacak şekilde yapıştırın: <b>tarih tutar açıklama</b>. Çıkışlar eksi (−) yazılır. Örn: <code>12.11.2026 -4.500,00 Kira</code></p>
+ <label style="font-size:12px;color:var(--mut)">Banka hesabı</label><select id="mu_b" style="width:100%;margin-bottom:8px"><option value="">Tümü</option>${B.map(b=>`<option value="${b.id}">${esc(b.ad)}</option>`).join('')}</select>
+ <textarea id="mu_t" rows="8" style="width:100%" placeholder="12.11.2026 -4.500,00 Kira&#10;14.11.2026 12.000,00 Havale - ABC Ltd"></textarea>
+ <div class="row end" style="margin-top:10px"><button class="btn ghost" onclick="closeM()">Kapat</button><button class="btn" onclick="mutabakatCalistir()">Karşılaştır</button></div><div id="mu_s" style="margin-top:12px"></div></div>`;m.classList.add('open')}
+function mutabakatCalistir(){
+ const bid=$('#mu_b').value,E=mutParse($('#mu_t').value);
+ if(!E.length){toast('Ekstre satırı okunamadı. Her satırda tarih ve tutar olmalı');return}
+ const P=hazineDefter().filter(r=>r.hesap==='banka'&&!r.virman&&!String(r.id).startsWith('acilis-')&&(!bid||r.bankaId===bid)).map(r=>({...r}));
+ const gun=t=>Date.parse(t+'T00:00:00Z')/864e5;const es=[],yok=[];
+ E.forEach(e=>{let best=null,bd=9;P.forEach(p=>{if(p.used||p.yon!==e.yon||Math.abs(p.tutar-e.tutar)>0.004)return;const d=Math.abs(gun(p.t)-gun(e.t));if(d<=3&&d<bd){best=p;bd=d}});
+  if(best){best.used=1;es.push([e,best])}else yok.push(e)});
+ const prg=P.filter(p=>!p.used&&E.length&&p.t>=E.map(e=>e.t).sort()[0]&&p.t<=E.map(e=>e.t).sort().pop());
+ const sat=(t,y,tu,a)=>`<tr><td>${fd(t)}</td><td class="r ${y==='giris'?'green':'red'}">${y==='giris'?'+':'−'}${fmt(tu)}</td><td>${esc(a||'')}</td></tr>`;
+ $('#mu_s').innerHTML=`<div class="card stat" style="margin-bottom:8px"><small>✅ Eşleşen</small><b class="green">${es.length} hareket</b></div>
+ <h4 style="margin:10px 0 4px;color:var(--r)">Ekstrede var, programda YOK (${yok.length})</h4>${yok.length?`<div class="tw"><table>${yok.map(e=>sat(e.t,e.yon,e.tutar,e.ad)).join('')}</table></div><small style="color:var(--mut)">Bu hareketleri programa girmeniz gerekebilir.</small>`:'<small style="color:var(--mut)">Yok</small>'}
+ <h4 style="margin:12px 0 4px;color:var(--y)">Programda var, ekstrede YOK (${prg.length})</h4>${prg.length?`<div class="tw"><table>${prg.map(p=>sat(p.t,p.yon,p.tutar,[p.cari,p.ad].filter(Boolean).join(' · '))).join('')}</table></div><small style="color:var(--mut)">Yalnızca ekstre tarih aralığındaki kayıtlar gösterilir. Henüz bankaya yansımamış ya da hatalı girilmiş olabilir.</small>`:'<small style="color:var(--mut)">Yok</small>'}
+ <small style="display:block;margin-top:8px;color:var(--mut)">Eşleştirme: aynı yön, aynı tutar, tarih farkı en çok 3 gün.</small>`}
 function bankaForm(id){
  const b=id?bankaListe().find(x=>x.id===id):null;
  form(b?'✎ Banka Hesabını Düzenle':'🏦 Yeni Banka Hesabı',[
@@ -2685,7 +2734,7 @@ function pgBankalar(){
  let L=hazineDefter().filter(r=>r.hesap==='banka'&&(!bankaSec||(bankaSec==='yok'?!r.bankaId:r.bankaId===bankaSec)));
  let run=0;L=L.map(r=>{run=run+(r.yon==='giris'?r.tutar:-r.tutar);return {...r,run}}).reverse();
  const tb=(k,l)=>`<button class="${bankaSec===k?'on':''}" onclick="bankaSec='${k}';render()">${l}</button>`;
- return `<div class="top"><h2>🏦 Banka Hesaplarım</h2><div class="row"><button class="btn" onclick="bankaForm()">+ Banka Hesabı</button><button class="btn ghost" onclick="kasaEkle('giris')">+ Para Girişi (Transfer)</button><button class="btn ghost" onclick="kasaEkle('cikis')">− Para Çıkışı</button><button class="btn ghost" onclick="virmanEkle()">🔁 Virman</button><button class="btn ghost" onclick="bankaEkstreForm()">📄 Banka Ekstresi (PDF)</button></div></div>
+ return `<div class="top"><h2>🏦 Banka Hesaplarım</h2><div class="row"><button class="btn" onclick="bankaForm()">+ Banka Hesabı</button><button class="btn ghost" onclick="kasaEkle('giris')">+ Para Girişi (Transfer)</button><button class="btn ghost" onclick="kasaEkle('cikis')">− Para Çıkışı</button><button class="btn ghost" onclick="virmanEkle()">🔁 Virman</button><button class="btn ghost" onclick="bankaEkstreForm()">📄 Banka Ekstresi (PDF)</button><button class="btn ghost" onclick="mutabakatForm()">🔍 Mutabakat</button></div></div>
  <div class="card stat" style="margin-bottom:12px"><small>TOPLAM BANKA (tüm hesaplar)</small><b class="${clr(h.banka.bakiye)}" style="font-size:28px">${fmt(h.banka.bakiye)}</b><small style="margin-top:4px">Giriş ${fmt(h.banka.giris)} · Çıkış ${fmt(h.banka.cikis)}</small></div>
  ${B.length?`<div class="grid g2" style="margin-bottom:12px">${B.map(b=>kart(b.id,b.ad,b.iban,h.bankalar[b.id],`<div style="display:flex;gap:6px;margin-top:6px" onclick="event.stopPropagation()"><button class="btn ghost sm" onclick="bankaForm('${b.id}')">✎ Düzenle</button><button class="btn dng sm" onclick="bankaSil('${b.id}')">✕</button></div>`)).join('')}${yokVar?kart('yok','Hesap belirtilmemiş','Banka seçilmeden girilen hareketler',yok):''}</div>`:'<div class="empty" style="margin-bottom:12px">Henüz banka hesabı yok. "+ Banka Hesabı" ile oluşturun; sonra havale, kredi kartı, çek tahsilatı ve transferlerde hangi hesaba işleneceğini seçebilirsiniz.</div>'}
  <div class="tabs" style="margin-bottom:10px">${tb('','Tümü')}${B.map(b=>tb(b.id,esc(b.ad))).join('')}${yokVar&&B.length?tb('yok','Belirtilmemiş'):''}</div>
@@ -2693,8 +2742,14 @@ function pgBankalar(){
  <p style="color:var(--mut);font-size:12px;margin-top:10px">Banka havalesi, kredi kartı (vadesi gelen taksitler), tahsil edilen/ödenen çek-senetler ve transferler seçtiğiniz banka hesabına işlenir. Toplam banka tutarı Genel Hazine ve Panel'deki "Bankadaki Nakit" kartında görünür.</p>`;
 }
 /* ---------- Giderler (ayrı menü) ---------- */
+function eskiSgkSay(){return db.kasa.filter(k=>k.gider==='vergi'&&(k.vergiTur==='SGK primi'||k.vergiTur==='Bağ-Kur primi')).length}
+function eskiSgkTasi(){
+ const L=db.kasa.filter(k=>k.gider==='vergi'&&(k.vergiTur==='SGK primi'||k.vergiTur==='Bağ-Kur primi'));if(!L.length)return;
+ ask(L.length+' kayıt Vergi bölümünden SGK Prim bölümüne taşınacak (tutarlar, tarihler ve hesap bilgileri aynı kalır). Hazine toplamı değişmez; maaş + SGK toplamına dahil olurlar.','Taşı').then(r=>{if(!r)return;
+  L.forEach(k=>{k.sgkTur=k.vergiTur==='Bağ-Kur primi'?'Bağ-Kur primi':'SGK primi (işçi + işveren)';k.gider='sgk';delete k.vergiTur});save();render();toast(L.length+' kayıt SGK bölümüne taşındı')})}
 function pgGiderler(){
- return `<div class="top"><h2>🧾 Giderler</h2><div class="row"><button class="btn" onclick="giderEkle('genel')">+ Gider</button><button class="btn ghost" onclick="giderEkle('maas')">+ Maaş</button><button class="btn ghost" onclick="giderEkle('sgk')">+ SGK</button><button class="btn ghost" onclick="giderEkle('vergi')">+ Vergi</button></div></div>
+ const es=eskiSgkSay();
+ return `${es?`<div class="card stat warn" style="margin-bottom:12px"><small>ℹ️ Vergi altında ${es} adet "SGK / Bağ-Kur primi" kaydı var</small><small style="margin:4px 0 8px">Bunları SGK Prim bölümüne taşırsanız maaş + SGK prim toplamında görünürler.</small><button class="btn sm" onclick="eskiSgkTasi()">➡️ SGK bölümüne taşı</button></div>`:''}<div class="top"><h2>🧾 Giderler</h2><div class="row"><button class="btn" onclick="giderEkle('genel')">+ Gider</button><button class="btn ghost" onclick="giderEkle('maas')">+ Maaş</button><button class="btn ghost" onclick="giderEkle('sgk')">+ SGK</button><button class="btn ghost" onclick="giderEkle('vergi')">+ Vergi</button></div></div>
  ${giderBolum().replace(/<h3 style="margin:22px 0 8px">🧾 Giderler<\/h3>/,'')}`;
 }
 
