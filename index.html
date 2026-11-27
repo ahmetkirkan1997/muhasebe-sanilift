@@ -133,7 +133,7 @@ function paraCiz(el){
  el.value=txt;const pos=el._d==null?txt.length-3:txt.length-2+ds.length;
  try{el.setSelectionRange(pos,pos)}catch(e){}
 }
-function paraAyarla(el,n){const v=Math.round((+n||0)*100)/100,t=v.toFixed(2).split('.');el._i=t[0]==='0'?'':t[0];el._d=null;el.dataset.para='1';el.value='₺'+paraGrup(el._i)+','+t[1];if(el._i==='')el.value='₺0,'+t[1]}
+function paraAyarla(el,n){const v=Math.round((+n||0)*100)/100,t=v.toFixed(2).split('.');el._i=t[0]==='0'?'':t[0];el._d=t[1]==='00'?null:t[1];el.dataset.para='1';el.value='₺'+paraGrup(el._i)+','+t[1];if(el._i==='')el.value='₺0,'+t[1]}
 function paraOku(el){if(!paraAlan(el))return parseFloat(String(el.value).replace(',','.'))||0;return +((el._i||'0')+'.'+(((el._d||'')+'00').slice(0,2)))}
 function paraMetin(el,t){ /* yapıştırma / klavye dışı giriş: metni çöz */
  t=String(t).replace(/[₺\sTLtl]/g,'');let ip=t,dp=null;
@@ -165,7 +165,7 @@ document.addEventListener('input',e=>{ /* beforeinput desteklenmeyen/bestelenmi�
  const el=e.target;if(!paraAlan(el))return;
  if(el.value!==('₺'+paraGrup(el._i)+','+(((el._d==null?'':el._d)+'00').slice(0,2)))){paraMetin(el,el.value);el.dispatchEvent(new Event('input',{bubbles:true}))}
 });
-document.addEventListener('focusin',e=>{const el=e.target;if(paraAlan(el)){setTimeout(()=>paraCiz(el),0)}});
+document.addEventListener('focusin',e=>{const el=e.target;if(paraAlan(el)){setTimeout(()=>{paraCiz(el);if(el._i||el._d)try{el.select()}catch(x){}},0)}});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fd=d=>d?d.split('-').reverse().join('.'):'-';
 const yuv=v=>Math.round((+v||0)*100+ (v<0?-1e-9:1e-9))/100;
@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.4.1',SURUM_TARIH='26.11.2026';
+const SURUM='1.4.2',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -2673,7 +2673,7 @@ function bankaForm(id){
 function bankaSil(id){
  const b=bankaListe().find(x=>x.id===id);if(!b)return;
  const n=hazineDefter().filter(r=>r.bankaId===id&&!String(r.id).startsWith('acilis-')).length;
- ask('"'+b.ad+'" hesabı silinsin mi?'+(n?' Bu hesaba bağlı '+n+' hareket silinmez; "hesap belirtilmemiş banka" altında kalır.':''),'Sil').then(ok=>{if(!ok)return;
+ ask('"'+b.ad+'" hesabı silinsin mi?'+(n?' Bu hesaba bağlı '+n+' hareket silinmez; "hesap belirtilmemiş banka" altında kalır.':'')+(+b.acilis?' Hesabın açılış bakiyesi ('+fmt(b.acilis)+') da toplamdan düşer.':''),'Sil').then(ok=>{if(!ok)return;
   [...db.kasa,...db.hareketler,...db.cekler].forEach(x=>{if(x.bankaId===id)delete x.bankaId});
   db.bankalar=db.bankalar.filter(x=>x.id!==id);if(bankaSec===id)bankaSec='';save();render()});
 }
