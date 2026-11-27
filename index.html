@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.5.0',SURUM_TARIH='26.11.2026';
+const SURUM='1.5.1',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -2209,14 +2209,12 @@ function pgCari(id){
  </table></div>`:'<div class="empty">Henüz hareket yok.</div>'}`;
 }
 function cariSil(id){confirmDel('Bu cari ve tüm hareketleri silinsin mi?',()=>{db.cariler=db.cariler.filter(c=>c.id!==id);db.hareketler=db.hareketler.filter(h=>h.cariId!==id);db.belgeler=(db.belgeler||[]).filter(b=>b.cariId!==id);db.cekler.forEach(c=>{if(c.cariId===id)c.cariId=''});ROUTE='cariler'})}
-/* Mükerrer fatura no uyarısı: aynı cari + aynı fatura no + aynı tarih = aynı faturanın kalemleri (uyarı yok) */
+/* Mükerrer fatura no uyarısı: aynı cari içinde aynı fatura no serbest (çok kalemli fatura); yalnızca başka cariyle çakışınca uyarır */
 function faturaCakisma(cariId,no,tarih,haric){
  const k=String(no||'').trim().toLowerCase();if(!k)return '';
  const L=db.hareketler.filter(h=>(h.tip==='alis'||h.tip==='satis')&&h.id!==haric&&String(h.fatura||'').trim().toLowerCase()===k);
  const baska=L.find(h=>h.cariId!==cariId);
  if(baska)return '"'+no+'" numaralı fatura başka bir carinin ('+cariAd(baska.cariId)+') kaydında da var. Yine de kaydedilsin mi?';
- const gun=L.find(h=>String(h.tarih).slice(0,10)!==String(tarih).slice(0,10));
- if(gun)return '"'+no+'" numaralı fatura bu carinin '+fd(gun.tarih)+' tarihli kaydında da var; bu kayıt farklı bir tarihte. Yine de kaydedilsin mi?';
  return '';
 }
 function hareketEkle(cariId,tip,d){
