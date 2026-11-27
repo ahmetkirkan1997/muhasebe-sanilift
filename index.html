@@ -301,7 +301,7 @@ async function kalici(){
   if(!uyari){uyari=true;setTimeout(()=>toast('⚠️ Tarayıcı kalıcı kayda izin vermiyor. Veriler yalnızca bu sayfa açıkken durur; Chrome\'da açın ve yedek alın.',6000),300)}
   return false}
 }
-function save(){dirty=true;yazSira=yazSira.then(kalici).catch(()=>false);return yazSira}
+function save(){dirty=true;lsSet('muhasebe_pro_son_degisiklik',new Date().toISOString());yazSira=yazSira.then(kalici).catch(()=>false);return yazSira}
 async function zarfMetni(){await yazSira;await kalici();return JSON.stringify(ENV)}
 function bostaSifirla(){clearTimeout(bostaT)} /* otomatik kilit kapalı: oturum yalnızca elle (🔒 Kilitle) veya sayfa kapanınca sonlanır */
 ['pointerdown','keydown','touchstart'].forEach(e=>window.addEventListener(e,bostaSifirla,{passive:true}));
@@ -312,7 +312,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.11.0',SURUM_TARIH='26.11.2026';
+const SURUM='1.12.0',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -555,6 +555,7 @@ function veriVarMi(){return db.cariler.length||db.hareketler.length||db.cekler.l
 function tarihSaat(){const d=new Date(),p=n=>String(n).padStart(2,'0');return today()+'-'+p(d.getHours())+p(d.getMinutes())}
 function yedekUyari(){
  if(!veriVarMi())return '';
+ if(dirty)return `<div class="card stat warn" style="margin-bottom:12px"><small>⚠️ Yedeklenmemiş değişiklikler var</small><small style="display:block;margin:4px 0 10px">Son yedekten sonra girdiğiniz kayıtlar yalnızca bu cihazda duruyor. Diğer cihaza geçmesi için yedekleyin.</small><div class="row"><button class="btn sm" onclick="yedekDrive()">☁️ Drive'a Yedekle</button><button class="btn ghost sm" onclick="farkliKaydet()">💾 Farklı Kaydet</button></div></div>`;
  const s=lsGet(BKEY);const gun=s?Math.floor((Date.now()-new Date(s))/864e5):null;
  if(s&&gun<7)return '';
  return `<div class="card stat warn" style="margin-bottom:12px"><small>⚠️ Yedek almanız önerilir</small><b style="font-size:15px;display:block;margin-bottom:8px">${s?'Son yedek '+gun+' gün önce alındı.':'Henüz yedek dosyası kaydetmediniz.'}</b><small style="margin-bottom:10px">Veriler bu cihazın tarayıcısında durur. Tarayıcı verileri silinirse kaybolur.</small><button class="btn sm" onclick="farkliKaydet()">💾 Şimdi Kaydet</button></div>`;
@@ -691,7 +692,7 @@ async function sifreliYukle(env,ad){
  modalA('🔐 Şifreli yedeği yükle',[{name:'u',label:'Dosyadaki kullanıcı adı'},{name:'p',label:'Şifre',type:'password'}],'Aç ve Yükle',async o=>{
   let r;try{r=await zarfAc(env,o.u,o.p)}catch(e){return e.message==='bozuk'?'Dosya bozuk görünüyor.':'Kullanıcı adı veya şifre hatalı.'}
   await yazSira;lsSet(PKEY,lsGet(KEY2)||'');
-  oturumKur(env,r);await save();dirty=false;bostaSifirla();toast('Veriler yüklendi ✓ Hesaplar dosyadakilerle değişti',5000);return null;
+  oturumKur(env,r);await save();dirty=false;lsSet(BKEY,new Date().toISOString());bostaSifirla();toast('Veriler yüklendi ✓ Hesaplar dosyadakilerle değişti',5000);return null;
  },'"'+ad+'" şifreli bir yedek. Bu cihazdaki mevcut veriler ve kullanıcı hesapları dosyadakilerle DEĞİŞTİRİLİR. Yüklemeyi sonradan geri alabilirsiniz.');
 }
 async function yukleIsle(txt,ad){
@@ -3007,6 +3008,22 @@ function tkAc(id){tk=JSON.parse(JSON.stringify(db.teklifler.find(t=>t.id===id)))
 }catch(e){}})();
 
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+/* açılışta: son değişiklik son yedekten yeniyse yedeklenmemiş sayılır */
+dirty=(()=>{const s=lsGet('muhasebe_pro_son_degisiklik'),b=lsGet(BKEY);return !!s&&(!b||s>b)})();
+/* geri tuşu / çıkış: yedeklenmemiş değişiklik varsa sor */
+let cikisIzin=false;
+try{history.pushState(null,'','#'+ROUTE)}catch(e){}
+window.addEventListener('popstate',()=>{
+ if(cikisIzin){history.back();return}
+ if(dirty){try{history.pushState(null,'','#'+ROUTE)}catch(e){}cikisSor();return}
+ cikisIzin=true;history.back()});
+function cikisSor(){
+ const m=$('#modal');if(m.classList.contains('open')&&m.querySelector('#cs_d'))return;if(m.classList.contains('open'))return;
+ m.innerHTML='<div class="box"><h3>⚠️ Değişiklikler yedeklensin mi?</h3><p style="color:var(--mut);line-height:1.6;font-size:14px;margin:10px 0">Son yedekten sonra yaptığınız değişiklikler henüz yedeklenmedi. Çıkarsanız veriler bu cihazda kalır ama başka cihaza geçmez.</p><div class="row end" style="flex-wrap:wrap;gap:8px"><button class="btn ghost" id="cs_v">Vazgeç, kal</button><button class="btn ghost" id="cs_c">Yine de çık</button><button class="btn ghost" id="cs_k">💾 Farklı Kaydet</button>'+(driveUygun()?'<button class="btn" id="cs_d">☁️ Drive\'a Yedekle</button>':'')+'</div></div>';
+ m.classList.add('open');
+ $('#cs_v').onclick=closeM;$('#cs_c').onclick=()=>{closeM();cikisIzin=true;history.back()};
+ $('#cs_k').onclick=()=>{closeM();farkliKaydet()};const d=$('#cs_d');if(d)d.onclick=()=>{closeM();yedekDrive()};
+}
 baslat();
 </script>
 </body></html>
