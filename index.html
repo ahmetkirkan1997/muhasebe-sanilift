@@ -312,7 +312,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.10.0',SURUM_TARIH='26.11.2026';
+const SURUM='1.10.1',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -589,19 +589,29 @@ function driveToken(){return new Promise((res,rej)=>{
  if(window.google&&google.accounts&&google.accounts.oauth2)return baslat();
  const sc=document.createElement('script');sc.src='https://accounts.google.com/gsi/client';sc.onload=baslat;sc.onerror=()=>rej(new Error('Google betiği yüklenemedi (internet bağlantısını kontrol edin)'));document.head.appendChild(sc)})}
 async function yedekDriveApi(icerik,ad){
- const tok=await driveToken(),q=encodeURIComponent,F='https://www.googleapis.com/drive/v3/files';
- const kl=await driveFetch(tok,F+'?fields=files(id)&q='+q("name='Sanilift Yedek' and mimeType='application/vnd.google-apps.folder' and trashed=false"));
- let fid=kl.files&&kl.files[0]&&kl.files[0].id;
- if(!fid){const c=await driveFetch(tok,F+'?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Sanilift Yedek',mimeType:'application/vnd.google-apps.folder'})});fid=c.id}
- const ex=await driveFetch(tok,F+'?fields=files(id)&q='+q("name='"+ad+"' and '"+fid+"' in parents and trashed=false")),var_=ex.files&&ex.files[0];
- const meta={name:ad,mimeType:'application/json'};if(!var_)meta.parents=[fid];
+ const tok=await driveToken(),q=encodeURIComponent,F='https://www.googleapis.com/drive/v3/files',MIME_K='application/vnd.google-apps.folder';
+ const klasor=async(isim,ust)=>{
+  const r=await driveFetch(tok,F+'?fields=files(id)&q='+q("name='"+isim+"' and mimeType='"+MIME_K+"' and trashed=false"+(ust?" and '"+ust+"' in parents":'')));
+  if(r.files&&r.files[0])return r.files[0].id;
+  const c=await driveFetch(tok,F+'?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:isim,mimeType:MIME_K,...(ust?{parents:[ust]}:{})})});
+  return c.id};
+ const ana=await klasor('Sanilift Muhasebe'),yil=await klasor('Yedek '+new Date().getFullYear(),ana);
+ const meta={name:ad,mimeType:'application/json',parents:[yil]};
  const B='sanilift'+Date.now(),body='--'+B+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n--'+B+'\r\nContent-Type: application/json\r\n\r\n'+icerik+'\r\n--'+B+'--';
- return driveFetch(tok,'https://www.googleapis.com/upload/drive/v3/files'+(var_?'/'+var_.id:'')+'?uploadType=multipart&fields=id,name',{method:var_?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+B},body});
+ const yeni=await driveFetch(tok,'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+B},body});
+ /* yıl klasöründe yalnızca en yeni 3 yedek kalır; eskileri Drive çöp kutusuna taşınır */
+ let silinen=0;
+ try{
+  const L=await driveFetch(tok,F+'?pageSize=100&orderBy=createdTime%20desc&fields=files(id,name)&q='+q("'"+yil+"' in parents and trashed=false and name contains 'sanilift-yedek-'"));
+  const eski=(L.files||[]).filter(f=>/^sanilift-yedek-.*\.json$/.test(f.name)).slice(3);
+  for(const f of eski){await driveFetch(tok,F+'/'+f.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});silinen++}
+ }catch(e){}
+ return {...yeni,silinen,yil:new Date().getFullYear()};
 }
 async function yedekDrive(){
  const ad='sanilift-yedek-'+tarihSaat()+'.json',icerik=await zarfMetni(),basari=()=>{lsSet(BKEY,new Date().toISOString());dirty=false;if(ROUTE==='panel'||ROUTE==='ayarlar')render()};
  if(driveUygun()){
-  try{toast('Google Drive\'a yükleniyor…',3000);const r=await yedekDriveApi(icerik,'sanilift-yedek-'+tarihSaat().slice(0,10)+'.json');basari();toast('✓ Drive\'a yedeklendi: Sanilift Yedek / '+r.name,6000);return}
+  try{toast('Google Drive\'a yükleniyor…',3000);const r=await yedekDriveApi(icerik,ad);basari();toast('✓ Drive\'a yedeklendi: Sanilift Muhasebe / Yedek '+r.yil+' / '+r.name+(r.silinen?' ('+r.silinen+' eski yedek çöp kutusuna taşındı)':''),7000);return}
   catch(e){if(e&&e.iptal){toast('Google bağlantısı iptal edildi');return}toast('Drive\'a doğrudan yüklenemedi ('+(e&&e.message||'hata')+'). Paylaşım yolu deneniyor…',5000)}
  }
  try{
