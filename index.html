@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.4',SURUM_TARIH='26.11.2026';
+const SURUM='1.4.1',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -1225,7 +1225,9 @@ async function hazinePdf(bolumler,bas,bit,dosyaBaslik){
    return vergi?[fd(k.tarih),gAn(k),k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]:maas?[fd(k.tarih),k.kisi||'-',k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]:[fd(k.tarih),k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]});
   tablo(kol,sat,'Seçilen dönemde '+(maas?'maaş':sgk?'SGK prim':vergi?'vergi':'genel')+' gideri bulunmuyor.');
   const o=[];if(maas||vergi)Object.keys(kisi).sort((a,b)=>a.localeCompare(b,'tr')).forEach(a=>o.push([a,'₺'+pn(kisi[a])]));
-  ozetKutusu(o,['TOPLAM','₺'+pn(top),RED]);
+  ozetKutusu(o,[maas?'TOPLAM MAAŞ':sgk?'TOPLAM SGK PRİM':'TOPLAM','₺'+pn(top),RED]);
+  if(maas||sgk){const ms=t=>db.kasa.filter(k=>k.yon==='cikis'&&!k.virman&&giderTuru(k)===t&&donemde({t:k.tarih})).reduce((a,k)=>a+k.tutar,0),m1=ms('maas'),s1=ms('sgk');
+   ozetKutusu([['Toplam maaş','₺'+pn(m1)],['SGK prim ödemeleri','₺'+pn(s1)]],['MAAŞ + SGK PRİM TOPLAMI','₺'+pn(m1+s1),RED])}
  }
  /* ---- genel özet ---- */
  function ozetBolum(){
@@ -1422,6 +1424,8 @@ function hazineXlsx(bolumler,bas,bit){
   sat.push([XT('TOPLAM'),'','','','','','',XMK(top)]);
   const ks=Object.keys(kisi).sort((a,c)=>a.localeCompare(c,'tr'));
   if(ks.length){sat.push({baslik:(tur==='maas'?'PERSONEL':tur==='sgk'?'PRİM TÜRÜ':'VERGİ TÜRÜ')+' BAZINDA TOPLAM'});ks.forEach(a=>sat.push([XB(a),'','','','','','',XM(kisi[a])]))}
+  if(tur==='maas'||tur==='sgk'){const ms=t=>db.kasa.filter(k=>k.yon==='cikis'&&!k.virman&&giderTuru(k)===t&&donemde({t:k.tarih})).reduce((a,k)=>a+k.tutar,0),m1=ms('maas'),s1=ms('sgk');
+   sat.push({baslik:'MAAŞ + SGK PRİM TOPLAMI'});sat.push([XB('Toplam maaş'),'','','','','','',XM(m1)]);sat.push([XB('SGK prim ödemeleri'),'','','','','','',XM(s1)]);sat.push([XT('MAAŞ + SGK PRİM TOPLAMI'),'','','','','','',XMK(yuvarla(m1+s1))])}
   return{ad,kol:[{b:'Tarih',w:12},{b:ek,w:24},{b:'Açıklama / dönem',w:34},{b:'Hesap',w:12},{b:'Yöntem',w:13},{b:'Kart / Banka',w:16},{b:'Taksit',w:9},{b:'Tutar (₺)',w:14}],satir:sat};
  }
  function ozetS(){
@@ -1687,7 +1691,7 @@ function tumVeriXlsx(){
   []];
  hzUst.length=hzU;
  /* --- Giderler (ana başlık + maaş / vergi / genel ayrı başlıklarda) --- */
- const gU=10,gCH=gU+2,GT={Maaş:0,SGK:0,Vergi:0,Genel:0};
+ const gU=11,gCH=gU+2,GT={Maaş:0,SGK:0,Vergi:0,Genel:0};
  const gBol=[['Maaş','MAAŞ GİDERLERİ','Personel'],['SGK','SGK PRİM ÖDEMELERİ','Prim türü'],['Vergi','VERGİ GİDERLERİ','Vergi türü'],['Genel','GENEL GİDERLER','Kategori']];
  const gTur=k=>{const t=giderTuru(k);return t==='maas'?'Maaş':t==='sgk'?'SGK':t==='vergi'?'Vergi':'Genel'};
  const gAnahtar=(tur,k)=>tur==='Maaş'?(k.kisi||'(belirtilmemiş)'):tur==='SGK'?(k.sgkTur||'Diğer SGK ödemesi'):tur==='Vergi'?(k.vergiTur||'Diğer vergi'):(k.kisi||'');
@@ -1713,6 +1717,7 @@ function tumVeriXlsx(){
   ['','',XB('Vergi giderleri toplamı'),'','','',gsum('Vergi')],
   ['','',XB('Genel giderler toplamı'),'','','',gsum('Genel')],
   ['','',XT('TÜM GİDERLER'),'','','',F('G2+G3+G4+G5',5,r2(GT.Maaş+GT.SGK+GT.Vergi+GT.Genel))],
+  ['','',XB('Maaş + SGK prim ödemeleri toplamı'),'','','',F('G2+G3',2,r2(GT.Maaş+GT.SGK))],
   [XA('Giderler maaş, SGK prim, vergi ve genel olarak ayrı başlıklarda listelenir. Her başlığın altında bölüm toplamı ve personel / prim türü / vergi türü bazında alt toplamlar vardır.')],
   [XA('Taksitli ödenen giderlerde tutarın tamamı gösterilir; hazine sayfası yalnızca vadesi gelen taksitleri nakit çıkışı sayar.')],[],[]];
  gUst.length=gU;
@@ -2505,10 +2510,10 @@ function giderBolum(){
  const tb=(k,l)=>`<button class="${giderTur===k?'on':''}" onclick="giderTur='${k}';render()">${l}</button>`;
  const ayAd=x=>{const [y,mm]=x.split('-');return ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][+mm-1]+' '+y};
  let kisi='';
- if(giderTur==='maas'&&L.length){const p={};L.forEach(k=>{const n=k.kisi||'—';p[n]=(p[n]||0)+k.tutar});kisi=`<div class="card" style="margin-bottom:10px"><small style="color:var(--mut)">Personel bazında</small>${Object.entries(p).sort((a,b)=>b[1]-a[1]).map(([n,t])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line);margin-top:5px"><span>${esc(n)}</span><b class="red">${fmt(t)}</b></div>`).join('')}</div>`}
+ if(giderTur==='maas'&&L.length){const p={};L.forEach(k=>{const n=k.kisi||'—';p[n]=(p[n]||0)+k.tutar});kisi=`<div class="card" style="margin-bottom:10px"><small style="color:var(--mut)">Personel bazında</small>${Object.entries(p).sort((a,b)=>b[1]-a[1]).map(([n,t])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line);margin-top:5px"><span>${esc(n)}</span><b class="red">${fmt(t)}</b></div>`).join('')}<div style="display:flex;justify-content:space-between;padding:7px 0 2px;border-top:2px solid var(--line);margin-top:7px"><b>Toplam maaş</b><b class="red">${fmt(L.reduce((a,k)=>a+k.tutar,0))}</b></div><div style="display:flex;justify-content:space-between;padding:3px 0"><span>SGK prim ödemeleri</span><b class="red">${fmt(sg)}</b></div><div style="display:flex;justify-content:space-between;padding:3px 0"><b>Maaş + SGK prim toplamı</b><b class="red">${fmt(m+sg)}</b></div></div>`}
  if((giderTur==='vergi'||giderTur==='sgk')&&L.length){const p={};L.forEach(k=>{const n=(giderTur==='sgk'?k.sgkTur:k.vergiTur)||(giderTur==='sgk'?'Diğer SGK ödemesi':'Diğer vergi');p[n]=(p[n]||0)+k.tutar});kisi=`<div class="card" style="margin-bottom:10px"><small style="color:var(--mut)">${giderTur==='sgk'?'Prim türü':'Vergi türü'} bazında</small>${Object.entries(p).sort((a,b)=>b[1]-a[1]).map(([n,t])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line);margin-top:5px"><span>${esc(n)}</span><b class="red">${fmt(t)}</b></div>`).join('')}</div>`}
  return `<h3 style="margin:22px 0 8px">🧾 Giderler</h3>
- <div class="grid g2" style="margin-bottom:10px"><div class="card stat" style="grid-column:1/-1"><small>TOPLAM GİDER${giderAy==='hepsi'?'':' · '+ayAd(giderAy)}</small><b class="red" style="font-size:24px">${fmt(top)}</b></div><div class="card stat"><small>🧾 Genel Giderler</small><b class="red">${fmt(g)}</b></div><div class="card stat"><small>👥 Maaş Giderleri</small><b class="red">${fmt(m)}</b></div><div class="card stat"><small>🛡️ SGK Prim Ödemeleri</small><b class="red">${fmt(sg)}</b></div><div class="card stat"><small>🏛️ Vergi Giderleri</small><b class="red">${fmt(v)}</b></div>${d>0?`<div class="card stat" style="grid-column:1/-1"><small>Diğer çıkışlar</small><b class="red">${fmt(d)}</b></div>`:''}</div>
+ <div class="grid g2" style="margin-bottom:10px"><div class="card stat" style="grid-column:1/-1"><small>TOPLAM GİDER${giderAy==='hepsi'?'':' · '+ayAd(giderAy)}</small><b class="red" style="font-size:24px">${fmt(top)}</b></div><div class="card stat"><small>🧾 Genel Giderler</small><b class="red">${fmt(g)}</b></div><div class="card stat"><small>👥 Maaş Giderleri</small><b class="red">${fmt(m)}</b></div><div class="card stat"><small>🛡️ SGK Prim Ödemeleri</small><b class="red">${fmt(sg)}</b></div><div class="card stat" style="grid-column:1/-1"><small>👥+🛡️ Maaş + SGK Prim Toplamı</small><b class="red">${fmt(m+sg)}</b></div><div class="card stat"><small>🏛️ Vergi Giderleri</small><b class="red">${fmt(v)}</b></div>${d>0?`<div class="card stat" style="grid-column:1/-1"><small>Diğer çıkışlar</small><b class="red">${fmt(d)}</b></div>`:''}</div>
  <div class="tabs" style="margin-bottom:10px">${tb('hepsi','Hepsi')}${tb('genel','Genel Giderler')}${tb('maas','Maaş Giderleri')}${tb('sgk','SGK Prim Ödemeleri')}${tb('vergi','Vergi Giderleri')}${d>0||giderTur==='diger'?tb('diger','Diğer'):''}</div>
  <select id="g_ay" onchange="giderAy=this.value;render()" style="margin-bottom:10px"><option value="hepsi">Tüm aylar</option>${aylar.map(a=>`<option value="${a}" ${a===giderAy?'selected':''}>${ayAd(a)}</option>`).join('')}</select>
  ${kisi}
