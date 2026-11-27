@@ -312,7 +312,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.8.1',SURUM_TARIH='26.11.2026';
+const SURUM='1.9.0',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -580,6 +580,20 @@ async function farkliKaydet(){
  else{toast('Dosya kaydedilemedi. Yedeği metin olarak kopyalayabilirsiniz.',4500);metinGoster()}
 }
 function yedekMailKaydet(v){v=String(v||'').trim();if(v&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){toast('E-posta adresi geçerli görünmüyor');return}db.ayar=db.ayar||{};db.ayar.yedekMail=v;save();toast(v?'Yedek e-posta adresi kaydedildi':'Adres silindi')}
+async function yedekDrive(){
+ const ad='sanilift-yedek-'+tarihSaat()+'.json',icerik=await zarfMetni(),basari=()=>{lsSet(BKEY,new Date().toISOString());dirty=false;if(ROUTE==='panel'||ROUTE==='ayarlar')render()};
+ try{
+  const f=new File([icerik],ad,{type:'text/plain'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){
+   await navigator.share({files:[f],title:'Sanilift Muhasebe yedek '+fd(today())});
+   basari();toast('Paylaşım tamamlandı. Açılan listeden Drive\'ı seçtiyseniz yedek Drive\'a kaydedildi',6500);return;
+  }
+ }catch(e){if(e&&e.name==='AbortError'){toast('Gönderme iptal edildi');return}}
+ const r=await dosyaKaydet(icerik,ad);
+ if(r!=='ok'){toast(r==='iptal'?'Kaydetme iptal edildi':'⚠️ Dosya kaydedilemedi',4500);return}
+ basari();toast('Dosya kaydedildi. Drive uygulamasından "'+ad+'" dosyasını yükleyin',8000);
+ setTimeout(()=>{try{window.open('https://drive.google.com/drive/my-drive','_blank')}catch(e){}},1200);
+}
 async function yedekMaille(){
  const ad='sanilift-yedek-'+tarihSaat()+'.json',adr=((db.ayar&&db.ayar.yedekMail)||($('#y_mail')&&$('#y_mail').value)||'').trim();
  if(adr&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adr)){toast('Önce geçerli bir e-posta adresi yazın');return}
@@ -681,7 +695,7 @@ function pgAyarlar(){
  return `<div class="top"><h2>⚙️ Ayarlar</h2><span style="color:var(--mut);font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 10px">${surumEtiket()}</span></div>
  ${pgHesap()}
  ${ayarYeniKart()}
- <div class="card" style="margin-bottom:12px"><h3>💾 Verileri Kaydet</h3><p style="color:var(--mut);font-size:13px;margin:6px 0 12px;line-height:1.5">Tüm verilerinizi bir yedek dosyası (.json) olarak kaydedin. Tarayıcınız destekliyorsa kaydedilecek klasörü seçtiren pencere açılır; yoksa dosya İndirilenler klasörüne iner. Konumu her seferinde seçmek için Chrome > Ayarlar > İndirilenler bölümünde "İndirmeden önce nereye kaydedileceğini sor" seçeneğini açın. Dosya kaydedilemezse metin olarak kopyalayabilirsiniz.</p><label for="y_mail" style="display:block;margin:0 0 4px;font-size:13px">Yedeğin gönderileceği e-posta adresi</label><input id="y_mail" type="email" inputmode="email" autocomplete="off" placeholder="ornek@gmail.com" value="${esc((db.ayar&&db.ayar.yedekMail)||'')}" onchange="yedekMailKaydet(this.value)" style="width:100%;margin-bottom:10px"><div class="row"><button class="btn" onclick="farkliKaydet()">💾 Farklı Kaydet…</button><button class="btn" onclick="yedekMaille()">📧 E-postayla Gönder</button><button class="btn ghost" onclick="metinGoster()">📋 Metin olarak kopyala</button></div><p style="color:var(--mut);font-size:12px;margin-top:10px">Son yedek: ${s?esc(new Date(s).toLocaleString('tr-TR')):'henüz alınmadı'}</p></div>
+ <div class="card" style="margin-bottom:12px"><h3>💾 Verileri Kaydet</h3><p style="color:var(--mut);font-size:13px;margin:6px 0 12px;line-height:1.5">Tüm verilerinizi bir yedek dosyası (.json) olarak kaydedin. Tarayıcınız destekliyorsa kaydedilecek klasörü seçtiren pencere açılır; yoksa dosya İndirilenler klasörüne iner. Konumu her seferinde seçmek için Chrome > Ayarlar > İndirilenler bölümünde "İndirmeden önce nereye kaydedileceğini sor" seçeneğini açın. Dosya kaydedilemezse metin olarak kopyalayabilirsiniz.</p><label for="y_mail" style="display:block;margin:0 0 4px;font-size:13px">Yedeğin gönderileceği e-posta adresi</label><input id="y_mail" type="email" inputmode="email" autocomplete="off" placeholder="ornek@gmail.com" value="${esc((db.ayar&&db.ayar.yedekMail)||'')}" onchange="yedekMailKaydet(this.value)" style="width:100%;margin-bottom:10px"><div class="row"><button class="btn" onclick="farkliKaydet()">💾 Farklı Kaydet…</button><button class="btn" onclick="yedekDrive()">☁️ Google Drive'a Yedekle</button><button class="btn" onclick="yedekMaille()">📧 E-postayla Gönder</button><button class="btn ghost" onclick="metinGoster()">📋 Metin olarak kopyala</button></div><p style="color:var(--mut);font-size:12px;margin-top:10px">Son yedek: ${s?esc(new Date(s).toLocaleString('tr-TR')):'henüz alınmadı'}</p></div>
  ${yonetici()?`<div class="card" style="margin-bottom:12px"><h3>📊 Tüm Veriyi Excel’e Aktar</h3><p style="color:var(--mut);font-size:13px;margin:6px 0 12px;line-height:1.5">Programdaki güncel tüm kayıtları tek Excel dosyasında alın: Özet, Cariler listesi, tek sayfada Çekler ve Senetler (çekler, senetler, ciro edilen çekler, ciro edilen senetler ayrı başlıklarda), her şirket için ayrı cari sayfası (hareketler ve çek/senetler dahil), Hazine, Giderler, KDV, Teklifler ve Notlar. Bakiyeler, çek vadeleri, nakit ve KDV Excel formülleriyle hesaplanır; satır ekleyip değiştirirseniz sonuçlar kendiliğinden güncellenir. Dosya şifresizdir, güvenli yerde saklayın.</p><button class="btn" onclick="tumVeriExcel()">📊 Excel Olarak Kaydet</button></div>`:''}
  ${yonetici()?`<div class="card" style="margin-bottom:12px"><h3>📂 Kayıtlı Verileri Yükle</h3><p style="color:var(--mut);font-size:13px;margin:6px 0 12px;line-height:1.5">Daha önce kaydettiğiniz yedek dosyasını seçin. Telefonda ve bilgisayarda aynı dosyayı yükleyerek verileri aktarabilirsiniz.</p><div class="row"><span class="btn dosyabtn">📂 Dosya Seç ve Yükle<input id="f_yukle" type="file" onchange="yukleSec(this)" aria-label="Yedek dosyası seç"></span><button class="btn ghost" onclick="metinYukle()">📋 Metin yapıştırarak yükle</button>${onc?'<button class="btn ghost" onclick="yuklemeyiGeriAl()">↩️ Son yüklemeyi geri al</button>':''}</div></div>`:''}
  <div class="card" style="margin-bottom:12px"><h3>Firma Bilgileri</h3><p style="color:var(--mut);font-size:12px;margin:6px 0 4px;line-height:1.5">Bu bilgiler teklifte ve cari ekstresinde şirket bilgisi olarak görünür.</p><label for="s_firma">Şirket Adı</label><input id="s_firma" value="${esc(a.firma)}"><label for="s_vd">Vergi Dairesi</label><input id="s_vd" value="${esc(a.vdairesi||'')}"><label for="s_vno">Vergi Numarası</label><input id="s_vno" inputmode="numeric" value="${esc(a.vergi||'')}"><label for="s_tel">Telefon</label><input id="s_tel" type="tel" value="${esc(a.tel)}"><label for="s_eposta">E-posta</label><input id="s_eposta" type="email" autocapitalize="none" value="${esc(a.eposta||'')}"><label for="s_adres">Adres</label><textarea id="s_adres" rows="2">${esc(a.adres)}</textarea><label for="s_kdv">Varsayılan KDV %</label><input id="s_kdv" type="number" step="any" value="${a.kdv}"><div class="row end"><button class="btn" onclick="firmaKaydet()">Kaydet</button></div></div>
@@ -1982,9 +1996,9 @@ function acilisKontrol(){
  const s=lsGet(BKEY),gun=s?Math.floor((Date.now()-new Date(s))/864e5):null;
  if(s&&gun<7)return;
  const m=$('#modal');if(m.classList.contains('open'))return;
- m.innerHTML='<div class="box"><h3>💾 Yedek zamanı</h3><p style="color:var(--mut);line-height:1.6;font-size:14px;margin:10px 0">'+(s?'Son yedek <b>'+gun+' gün</b> önce alındı.':'Henüz yedek almadınız.')+' Veriler yalnızca bu cihazda durur; telefon kaybolur ya da tarayıcı verisi silinirse geri getirilemez.</p><div class="row end"><button class="btn ghost" id="yh_s">Sonra</button><button class="btn ghost" id="yh_m">📧 E-postayla</button><button class="btn" id="yh_k">💾 Şimdi Kaydet</button></div></div>';
+ m.innerHTML='<div class="box"><h3>💾 Yedek zamanı</h3><p style="color:var(--mut);line-height:1.6;font-size:14px;margin:10px 0">'+(s?'Son yedek <b>'+gun+' gün</b> önce alındı.':'Henüz yedek almadınız.')+' Veriler yalnızca bu cihazda durur; telefon kaybolur ya da tarayıcı verisi silinirse geri getirilemez.</p><div class="row end"><button class="btn ghost" id="yh_s">Sonra</button><button class="btn ghost" id="yh_d">☁️ Drive</button><button class="btn ghost" id="yh_m">📧 E-postayla</button><button class="btn" id="yh_k">💾 Şimdi Kaydet</button></div></div>';
  m.classList.add('open');
- $('#yh_s').onclick=closeM;$('#yh_k').onclick=()=>{closeM();farkliKaydet()};$('#yh_m').onclick=()=>{closeM();yedekMaille()};
+ $('#yh_s').onclick=closeM;$('#yh_k').onclick=()=>{closeM();farkliKaydet()};$('#yh_m').onclick=()=>{closeM();yedekMaille()};$('#yh_d').onclick=()=>{closeM();yedekDrive()};
 }
 async function bildirimGonder(bas,govde){
  try{if(navigator.serviceWorker){const r=await navigator.serviceWorker.getRegistration();if(r){await r.showNotification(bas,{body:govde,icon:'icon-192.png',badge:'icon-192.png',tag:'sanilift-vade'});return true}}}catch(e){}
