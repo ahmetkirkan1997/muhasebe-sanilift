@@ -311,7 +311,7 @@ async function kilitle(msg){
  girisGoster(msg);
 }
 function legacyVar(){try{return !!lsGet(KEY)}catch(e){return false}}
-const SURUM='1.6.0',SURUM_TARIH='26.11.2026';
+const SURUM='1.7.0',SURUM_TARIH='26.11.2026';
 function surumEtiket(){return 'Sürüm '+SURUM+' · '+SURUM_TARIH}
 function girisGoster(mesaj){
  let k=$('#kilit');if(!k){k=document.createElement('div');k.id='kilit';document.body.appendChild(k)}
@@ -1227,11 +1227,13 @@ async function hazinePdf(bolumler,bas,bit,dosyaBaslik){
    const od=[hesapEt(k)+' · '+YONTEM_KISA[yontemOf(k)],k.kart&&{s:k.kart,boyut:7.5,renk:MUT},k.taksit&&k.taksit.n>1&&{s:k.taksit.n+' taksit',boyut:7.5,renk:MUT}];
    return vergi?[fd(k.tarih),sgk&&k.kisi?[gAn(k),{s:k.kisi,boyut:7.5,renk:MUT}]:gAn(k),k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]:maas?[fd(k.tarih),k.kisi||'-',k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]:[fd(k.tarih),k.aciklama||'-',od,{s:pn(k.tutar),f:'B',renk:RED}]});
   tablo(kol,sat,'Seçilen dönemde '+(maas?'maaş':sgk?'SGK prim':vergi?'vergi':'genel')+' gideri bulunmuyor.');
-  const o=[];if(sgk&&Object.keys(pkis).length){o.push(['— Personel bazında (SGK + Bağ-Kur) —','']);const pt=Object.values(pkis).reduce((a,b)=>a+b,0),bel=yuvarla(top-pt);Object.keys(pkis).sort((a,b)=>a.localeCompare(b,'tr')).forEach(a=>o.push([a,'₺'+pn(pkis[a])]));if(bel>0.004)o.push(['(personel belirtilmemiş)','₺'+pn(bel)]);o.push(['— Prim türü bazında —',''])}
+  const o=[];
   if(maas||vergi)Object.keys(kisi).sort((a,b)=>a.localeCompare(b,'tr')).forEach(a=>o.push([a,'₺'+pn(kisi[a])]));
   ozetKutusu(o,[maas?'TOPLAM MAAŞ':sgk?'TOPLAM SGK PRİM':'TOPLAM','₺'+pn(top),RED]);
-  if(maas||sgk){const ms=t=>db.kasa.filter(k=>k.yon==='cikis'&&!k.virman&&giderTuru(k)===t&&donemde({t:k.tarih})).reduce((a,k)=>a+k.tutar,0),m1=ms('maas'),s1=ms('sgk');
-   ozetKutusu([['Toplam maaş','₺'+pn(m1)],['SGK prim ödemeleri','₺'+pn(s1)]],['MAAŞ + SGK PRİM TOPLAMI','₺'+pn(m1+s1),RED])}
+  if(maas||sgk){const O=personelOzet(db.kasa.filter(k=>k.yon==='cikis'&&!k.virman&&(k.gider==='maas'||k.gider==='sgk')&&donemde({t:k.tarih}))),sm=f=>yuvarla(O.reduce((a,p)=>a+p[f],0)),m1=sm('maas'),s1=sm('sgk'),b1=sm('bagkur');
+   const pr=[['— Personel bazında maaş + prim —','']];O.forEach(p=>{pr.push([p.ad,'']);if(p.maas)pr.push(['   Maaş','₺'+pn(p.maas)]);if(p.sgk)pr.push(['   SGK primi','₺'+pn(p.sgk)]);if(p.bagkur)pr.push(['   Bağ-Kur primi','₺'+pn(p.bagkur)]);pr.push(['   Maaş + prim toplamı','₺'+pn(p.top),RED])});
+   ozetKutusu(pr);
+   ozetKutusu([['Toplam maaş','₺'+pn(m1)],['SGK primi (Bağ-Kur hariç)','₺'+pn(s1)],['Bağ-Kur primi','₺'+pn(b1)]],['MAAŞ + SGK + BAĞ-KUR TOPLAMI','₺'+pn(yuvarla(m1+s1+b1)),RED])}
  }
  /* ---- genel özet ---- */
  function ozetBolum(){
@@ -1431,10 +1433,11 @@ function hazineXlsx(bolumler,bas,bit){
    return [XD(k.tarih),tur==='genel'?(k.kisi||''):a,[k.kisi&&tur==='sgk'?k.kisi+' — ':'',k.aciklama||''].join(''),HESAP_AD[hesapOf(k)],YONTEM_KISA[yontemOf(k)],k.kart||'',k.taksit&&k.taksit.n>1?k.taksit.n:'',XM(k.tutar)]});
   sat.push([XT('TOPLAM'),'','','','','','',XMK(top)]);
   const ks=Object.keys(kisi).sort((a,c)=>a.localeCompare(c,'tr'));
-  if(tur==='sgk'&&Object.keys(pkis).length){const pt=Object.values(pkis).reduce((a,b)=>a+b,0),bel=yuvarla(top-pt);sat.push({baslik:'PERSONEL BAZINDA TOPLAM (SGK + BAĞ-KUR)'});Object.keys(pkis).sort((a,c)=>a.localeCompare(c,'tr')).forEach(a=>sat.push([XB(a),'','','','','','',XM(yuvarla(pkis[a]))]));if(bel>0.004)sat.push([XB('(personel belirtilmemiş)'),'','','','','','',XM(bel)])}
   if(ks.length){sat.push({baslik:(tur==='maas'?'PERSONEL':tur==='sgk'?'PRİM TÜRÜ':'VERGİ TÜRÜ')+' BAZINDA TOPLAM'});ks.forEach(a=>sat.push([XB(a),'','','','','','',XM(kisi[a])]))}
-  if(tur==='maas'||tur==='sgk'){const ms=t=>db.kasa.filter(k=>k.yon==='cikis'&&!k.virman&&giderTuru(k)===t&&donemde({t:k.tarih})).reduce((a,k)=>a+k.tutar,0),m1=ms('maas'),s1=ms('sgk');
-   sat.push({baslik:'MAAŞ + SGK PRİM TOPLAMI'});sat.push([XB('Toplam maaş'),'','','','','','',XM(m1)]);sat.push([XB('SGK prim ödemeleri'),'','','','','','',XM(s1)]);sat.push([XT('MAAŞ + SGK PRİM TOPLAMI'),'','','','','','',XMK(yuvarla(m1+s1))])}
+  if(tur==='maas'||tur==='sgk'){const O=personelOzet(db.kasa.filter(k=>k.yon==='cikis'&&!k.virman&&(k.gider==='maas'||k.gider==='sgk')&&donemde({t:k.tarih}))),sm=f=>yuvarla(O.reduce((a,p)=>a+p[f],0)),m1=sm('maas'),s1=sm('sgk'),b1=sm('bagkur');
+   sat.push({baslik:'PERSONEL BAZINDA MAAŞ + PRİM'});
+   O.forEach(p=>{const e=(l,v)=>sat.push([XB(p.ad+' — '+l),'','','','','','',XM(v)]);if(p.maas)e('Maaş',p.maas);if(p.sgk)e('SGK primi',p.sgk);if(p.bagkur)e('Bağ-Kur primi',p.bagkur);sat.push([XT(p.ad+' — Maaş + prim toplamı'),'','','','','','',XMK(p.top)])});
+   sat.push({baslik:'MAAŞ + SGK + BAĞ-KUR TOPLAMI'});sat.push([XB('Toplam maaş'),'','','','','','',XM(m1)]);sat.push([XB('SGK primi (Bağ-Kur hariç)'),'','','','','','',XM(s1)]);sat.push([XB('Bağ-Kur primi'),'','','','','','',XM(b1)]);sat.push([XT('MAAŞ + SGK + BAĞ-KUR TOPLAMI'),'','','','','','',XMK(yuvarla(m1+s1+b1))])}
   return{ad,kol:[{b:'Tarih',w:12},{b:ek,w:24},{b:'Açıklama / dönem',w:34},{b:'Hesap',w:12},{b:'Yöntem',w:13},{b:'Kart / Banka',w:16},{b:'Taksit',w:9},{b:'Tutar (₺)',w:14}],satir:sat};
  }
  function ozetS(){
@@ -1704,8 +1707,9 @@ function tumVeriXlsx(){
  const gBol=[['Maaş','MAAŞ GİDERLERİ','Personel'],['SGK','SGK PRİM ÖDEMELERİ','Prim türü'],['Vergi','VERGİ GİDERLERİ','Vergi türü'],['Genel','GENEL GİDERLER','Kategori']];
  const gTur=k=>{const t=giderTuru(k);return t==='maas'?'Maaş':t==='sgk'?'SGK':t==='vergi'?'Vergi':'Genel'};
  const gAnahtar=(tur,k)=>tur==='Maaş'?(k.kisi||'(belirtilmemiş)'):tur==='SGK'?(k.sgkTur||'Diğer SGK ödemesi'):tur==='Vergi'?(k.vergiTur||'Diğer vergi'):(k.kisi||'');
- const gToplamSat=gBol.reduce((a,b)=>{const n=gd.filter(k=>gTur(k)===b[0]).length;return a+n+4+(b[0]==='Genel'?0:new Set(gd.filter(k=>gTur(k)===b[0]).map(k=>gAnahtar(b[0],k))).size)},0);
+ const gToplamSat=gBol.reduce((a,b)=>{const n=gd.filter(k=>gTur(k)===b[0]).length;return a+n+4+(b[0]==='Genel'?0:new Set(gd.filter(k=>gTur(k)===b[0]).map(k=>gAnahtar(b[0],k))).size)+(b[0]==='SGK'?4*personelListe().length+8:0)},0);
  const gCS=gCH+gToplamSat+300,gr=col=>"'"+SN.gi+"'!$"+col+'$'+gCH+':$'+col+'$'+gCS,gl=col=>'$'+col+'$'+gCH+':$'+col+'$'+gCS;
+  let mRg=null;
  const gSat=[];
  gBol.forEach(([tur,bas,ek])=>{
   const L=gd.filter(k=>gTur(k)===tur);
@@ -1714,12 +1718,21 @@ function tumVeriXlsx(){
   if(!L.length)gSat.push(['','','(kayıt yok)']);
   L.forEach(k=>{top+=k.tutar;const a=gAnahtar(tur,k);if(tur!=='Genel')kisi[a]=(kisi[a]||0)+k.tutar;GT[tur]+=k.tutar;
    gSat.push([XD(k.tarih),tur,a,k.aciklama||'',HESAP_AD[hesapOf(k)],YONTEM_KISA[yontemOf(k)],XM(k.tutar),tur==='SGK'?(k.kisi||''):''])});
-  const son=gCH+gSat.length-1,rg=(c)=>'$'+c+'$'+ilk+':$'+c+'$'+Math.max(son,ilk);
+  const son=gCH+gSat.length-1,rg=(c)=>'$'+c+'$'+ilk+':$'+c+'$'+Math.max(son,ilk);if(tur==='Maaş')mRg=rg;
   gSat.push(['','',XT(tur==='SGK'?'SGK prim ödemeleri toplamı':bas.charAt(0)+bas.slice(1).toLocaleLowerCase('tr-TR')+' toplamı'),'','','',F('SUM('+rg('G')+')',5,r2(top))]);
   Object.keys(kisi).sort((a,b)=>a.localeCompare(b,'tr')).forEach(a=>gSat.push(['','',XB('   '+(tur==='Maaş'?'Personel: ':tur==='SGK'?'Prim türü: ':'Vergi türü: ')+a),'','','',F('SUMIFS('+rg('G')+','+rg('C')+',"'+a.replace(/"/g,'""')+'")',2,r2(kisi[a]))]));
-  if(tur==='SGK'){const pk={};L.forEach(k=>{if(k.kisi)pk[k.kisi]=(pk[k.kisi]||0)+k.tutar});const pt=Object.values(pk).reduce((a,b)=>a+b,0),bel=r2(top-pt);
-   Object.keys(pk).sort((a,b)=>a.localeCompare(b,'tr')).forEach(a=>gSat.push(['','',XB('   Personel: '+a+' (SGK + Bağ-Kur)'),'','','',F('SUMIFS('+rg('G')+','+rg('H')+',"'+a.replace(/"/g,'""')+'")',2,r2(pk[a]))]));
-   if(Object.keys(pk).length&&bel>0.004)gSat.push(['','',XB('   Personel: (belirtilmemiş)'),'','','',F('SUMIFS('+rg('G')+','+rg('H')+',"")',2,bel)])}
+  if(tur==='SGK'){const bk='Bağ-Kur primi',q=a=>'"'+a.replace(/"/g,'""')+'"',ad2=new Set();gd.forEach(k=>{if(k.kisi&&(gTur(k)==='Maaş'||gTur(k)==='SGK'))ad2.add(k.kisi)});
+   const top2=(f)=>r2(gd.filter(f).reduce((a,k)=>a+k.tutar,0));
+   if(ad2.size||L.some(k=>!k.kisi)){gSat.push({baslik:'PERSONEL BAZINDA MAAŞ + PRİM'});
+    const grup=(a,etiket,mf,sf,bf)=>{const mv=top2(mf),sv=top2(sf),bv=top2(bf);
+     gSat.push(['','',XB('   '+etiket+' — Maaş'),'','','',mRg?F('SUMIFS('+mRg('G')+','+mRg('C')+','+q(a)+')',2,mv):XM(mv)]);
+     gSat.push(['','',XB('   '+etiket+' — SGK primi'),'','','',F('SUMIFS('+rg('G')+','+rg('H')+','+q(a)+','+rg('C')+',"<>'+bk+'")',2,sv)]);
+     gSat.push(['','',XB('   '+etiket+' — Bağ-Kur primi'),'','','',F('SUMIFS('+rg('G')+','+rg('H')+','+q(a)+','+rg('C')+',"'+bk+'")',2,bv)]);
+     const n=gCH+gSat.length;gSat.push(['','',XT('   '+etiket+' — Maaş + prim toplamı'),'','','',F('SUM(G'+(n-3)+':G'+(n-1)+')',5,r2(mv+sv+bv))])};
+    [...ad2].sort((a,b)=>a.localeCompare(b,'tr')).forEach(a=>grup(a,a,k=>gTur(k)==='Maaş'&&k.kisi===a,k=>gTur(k)==='SGK'&&k.kisi===a&&k.sgkTur!==bk,k=>gTur(k)==='SGK'&&k.kisi===a&&k.sgkTur===bk));
+    if(L.some(k=>!k.kisi)){const sv=top2(k=>gTur(k)==='SGK'&&!k.kisi&&k.sgkTur!==bk),bv=top2(k=>gTur(k)==='SGK'&&!k.kisi&&k.sgkTur===bk);
+     gSat.push(['','',XB('   (personel belirtilmemiş) — SGK primi'),'','','',F('SUMIFS('+rg('G')+','+rg('H')+',"",'+rg('C')+',"<>'+bk+'")',2,sv)]);
+     gSat.push(['','',XB('   (personel belirtilmemiş) — Bağ-Kur primi'),'','','',F('SUMIFS('+rg('G')+','+rg('H')+',"",'+rg('C')+',"'+bk+'")',2,bv)])}}}
   gSat.push([]);
  });
  const gsum=t=>F('SUMIFS('+gl('G')+','+gl('B')+',"'+t+'")',2,r2(GT[t]));
@@ -2490,14 +2503,24 @@ const GIDER_AD={genel:'Genel Gider',maas:'Maaş Gideri',sgk:'SGK Prim Ödemesi',
 const SGK_TURLERI=['SGK primi (işçi + işveren)','Bağ-Kur primi','İşsizlik sigortası','SGK yapılandırma taksiti','Diğer SGK ödemesi'];
 const grupAnahtar=k=>k.sgkTur||k.vergiTur||'';
 const giderAd=k=>k.gider==='sgk'&&k.sgkTur==='Bağ-Kur primi'?'Bağ-Kur Ödemesi':GIDER_AD[giderTuru(k)];
+function personelListe(){db.personel=db.personel||[];const m={};db.personel.forEach(p=>{m[p.ad]={ad:p.ad,sahip:!!p.sahip}});db.kasa.forEach(k=>{if(k.kisi&&(k.gider==='maas'||k.gider==='sgk')&&!m[k.kisi])m[k.kisi]={ad:k.kisi,sahip:false}});return Object.values(m).sort((a,b)=>a.ad.localeCompare(b.ad,'tr'))}
+function personelKaydet(ad,sahip){db.personel=db.personel||[];const p=db.personel.find(x=>x.ad===ad);if(p)p.sahip=!!sahip;else db.personel.push({ad,sahip:!!sahip})}
+function personelOzet(L){const o={},al=a=>o[a]||(o[a]={ad:a,maas:0,sgk:0,bagkur:0});
+ L.forEach(k=>{const a=k.kisi||'(personel belirtilmemiş)',t=k.gider;if(t==='maas')al(a).maas+=k.tutar;else if(t==='sgk'){if(k.sgkTur==='Bağ-Kur primi')al(a).bagkur+=k.tutar;else al(a).sgk+=k.tutar}});
+ return Object.values(o).map(x=>({ad:x.ad,maas:yuvarla(x.maas),sgk:yuvarla(x.sgk),bagkur:yuvarla(x.bagkur),top:yuvarla(x.maas+x.sgk+x.bagkur)})).sort((a,b)=>a.ad.localeCompare(b.ad,'tr'))}
+function kisiAlanlari(d,tur){const P=personelListe(),cur=d&&d.kisi||'',var_=P.some(p=>p.ad===cur),sah=(P.find(p=>p.ad===cur)||{}).sahip;
+ return [{name:'kisiSec',label:tur==='maas'?'Personel (listeden seçin)':'Personel (listeden seçin; firma geneli ise boş bırakın)',type:'select',value:var_?cur:'',options:[['',tur==='maas'?'— Yeni personel (aşağıya yazın) —':'— Seçilmedi / yeni kişi —'],...P.map(p=>[p.ad,p.ad+(p.sahip?' (Şirket sahibi)':'')])]},
+  {name:'kisi',label:'Yeni kişi adı (listede yoksa yazın)',value:!var_?cur:''},
+  {name:'sahip',label:'Yeni kişinin türü (Bağ-Kur şirket sahibi için)',type:'select',value:sah?'1':'0',options:[['0','Çalışan'],['1','Şirket sahibi']]}]}
+const kisiOku=o=>((o.kisi&&o.kisi.trim())||o.kisiSec||'');
 const giderTuru=k=>k.gider==='genel'||k.gider==='maas'||k.gider==='sgk'||k.gider==='vergi'?k.gider:'diger';
 const VERGI_TURLERI=['KDV','Gelir / Kurumlar vergisi','Muhtasar (stopaj)','SGK primi','Bağ-Kur primi','Damga vergisi','Motorlu taşıtlar vergisi (MTV)','Emlak vergisi','Çevre temizlik vergisi','Diğer vergi'];
 function giderEkle(tur,d){
  form((d?'✎ Düzenle: ':'')+(tur==='maas'?'👥 Maaş Gideri':tur==='sgk'?'🛡️ SGK Prim Ödemesi':tur==='vergi'?'🏛️ Vergi Gideri':'🧾 Genel Gider'),[
   {name:'tarih',label:'Tarih',type:'date',value:d?d.tarih:today(),req:1},
   {name:'tutar',label:'Tutar (₺)',type:'number',req:1,step:'0.01',value:d?d.tutar:''},
-  ...(tur==='maas'?[{name:'kisi',label:'Personel adı',req:1,value:d?d.kisi||'':''}]:[]),
-  ...(tur==='sgk'?[{name:'kisi',label:'Personel adı (isteğe bağlı; firma geneli ise boş bırakın)',value:d?d.kisi||'':''},{name:'sgkTur',label:'Prim türü',type:'select',value:d?d.sgkTur||SGK_TURLERI[0]:SGK_TURLERI[0],options:SGK_TURLERI.map(x=>[x,x])}]:[]),
+  ...(tur==='maas'?kisiAlanlari(d,'maas'):[]),
+  ...(tur==='sgk'?[...kisiAlanlari(d,'sgk'),{name:'sgkTur',label:'Prim türü',type:'select',value:d?d.sgkTur||SGK_TURLERI[0]:SGK_TURLERI[0],options:SGK_TURLERI.map(x=>[x,x])}]:[]),
   ...(tur==='vergi'?[{name:'vergiTur',label:'Vergi türü',type:'select',value:d?d.vergiTur||'KDV':'KDV',options:VERGI_TURLERI.map(x=>[x,x])}]:[]),
   {name:'aciklama',label:tur==='maas'?'Açıklama (örn. Ekim maaşı, avans, prim)':tur==='sgk'?'Açıklama / dönem (örn. Ekim 2026 SGK primi)':tur==='vergi'?'Açıklama / dönem (örn. Ekim 2026 KDV)':'Açıklama (örn. kira, elektrik, yakıt)',req:tur==='maas'||tur==='vergi'||tur==='sgk'?0:1,value:d?d.aciklama||'':''},
   {name:'odeme',label:'Nasıl ödendi?',type:'select',value:d?d.odeme||'nakit':'nakit',options:[['nakit','Nakit (kasadan)'],['havale','Banka havalesi / EFT (bankadan)'],['kart','Kredi kartı (banka)']]},
@@ -2509,7 +2532,7 @@ function giderEkle(tur,d){
  ],o=>{
   if(!(o.tutar>0))throw new Error('Tutar sıfırdan büyük olmalı');
   const k={id:d?d.id:uid(),yon:'cikis',gider:tur,tarih:o.tarih,tutar:o.tutar,aciklama:o.aciklama||''};
-  if(tur==='maas')k.kisi=o.kisi;if(tur==='sgk'){k.sgkTur=o.sgkTur||SGK_TURLERI[0];if(o.kisi&&o.kisi.trim())k.kisi=o.kisi.trim()}if(tur==='vergi')k.vergiTur=o.vergiTur||'Diğer vergi';k.odeme=o.odeme||'nakit';if(o.kart){if(/\d{12,19}/.test(String(o.kart).replace(/[\s-]/g,'')))throw new Error('Kart numarası girmeyin; yalnızca kart/banka adı yazın');k.kart=o.kart}
+  {const ad=kisiOku(o);if(tur==='maas'&&!ad)throw new Error('Personel seçin veya yeni personel adı yazın');if(tur==='maas'||tur==='sgk'){if(ad)k.kisi=ad;if(o.kisi&&o.kisi.trim())personelKaydet(ad,o.sahip==='1')}}if(tur==='sgk')k.sgkTur=o.sgkTur||SGK_TURLERI[0];if(tur==='vergi')k.vergiTur=o.vergiTur||'Diğer vergi';k.odeme=o.odeme||'nakit';if(o.kart){if(/\d{12,19}/.test(String(o.kart).replace(/[\s-]/g,'')))throw new Error('Kart numarası girmeyin; yalnızca kart/banka adı yazın');k.kart=o.kart}
   if(o.odeme==='kart'){const tk2=taksitAlan(o,o.tarih);if(tk2)k.taksit=tk2}
   if((o.odeme||'nakit')!=='nakit'){const bid=bankaIdOku(o,o.odeme);if(bid)k.bankaId=bid}
   if(o.odeme==='havale'&&o.karsiBanka)k.karsiBanka=o.karsiBanka;
@@ -2535,12 +2558,12 @@ function giderBolum(){
  const tb=(k,l)=>`<button class="${giderTur===k?'on':''}" onclick="giderTur='${k}';render()">${l}</button>`;
  const ayAd=x=>{const [y,mm]=x.split('-');return ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][+mm-1]+' '+y};
  let kisi='';
- if(giderTur==='maas'&&L.length){const p={};L.forEach(k=>{const n=k.kisi||'—';p[n]=(p[n]||0)+k.tutar});kisi=`<div class="card" style="margin-bottom:10px"><small style="color:var(--mut)">Personel bazında</small>${Object.entries(p).sort((a,b)=>b[1]-a[1]).map(([n,t])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line);margin-top:5px"><span>${esc(n)}</span><b class="red">${fmt(t)}</b></div>`).join('')}<div style="display:flex;justify-content:space-between;padding:7px 0 2px;border-top:2px solid var(--line);margin-top:7px"><b>Toplam maaş</b><b class="red">${fmt(L.reduce((a,k)=>a+k.tutar,0))}</b></div><div style="display:flex;justify-content:space-between;padding:3px 0"><span>SGK prim ödemeleri</span><b class="red">${fmt(sg)}</b></div><div style="display:flex;justify-content:space-between;padding:3px 0"><b>Maaş + SGK prim toplamı</b><b class="red">${fmt(m+sg)}</b></div></div>`}
- if((giderTur==='vergi'||giderTur==='sgk')&&L.length){const sat=(p)=>Object.entries(p).sort((a,b)=>b[1]-a[1]).map(([n,t])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line);margin-top:5px"><span>${esc(n)}</span><b class="red">${fmt(t)}</b></div>`).join('');
-  const p={},pk={};L.forEach(k=>{const n=(giderTur==='sgk'?k.sgkTur:k.vergiTur)||(giderTur==='sgk'?'Diğer SGK ödemesi':'Diğer vergi');p[n]=(p[n]||0)+k.tutar;if(giderTur==='sgk'&&k.kisi)pk[k.kisi]=(pk[k.kisi]||0)+k.tutar});
-  const topL=L.reduce((a,k)=>a+k.tutar,0),pkT=Object.values(pk).reduce((a,b)=>a+b,0);
-  if(giderTur==='sgk'&&Object.keys(pk).length){const bel=yuvarla(topL-pkT);if(bel>0.004)pk['(personel belirtilmemiş)']=bel}
-  kisi=`${giderTur==='sgk'&&Object.keys(pk).length?`<div class="card" style="margin-bottom:10px"><small style="color:var(--mut)">Personel bazında (SGK + Bağ-Kur)</small>${sat(pk)}<div style="display:flex;justify-content:space-between;padding:7px 0 2px;border-top:2px solid var(--line);margin-top:7px"><b>Toplam</b><b class="red">${fmt(topL)}</b></div></div>`:''}<div class="card" style="margin-bottom:10px"><small style="color:var(--mut)">${giderTur==='sgk'?'Prim türü':'Vergi türü'} bazında</small>${sat(p)}</div>`}
+ const PL=tum.filter(k=>(giderAy==='hepsi'||String(k.tarih).slice(0,7)===giderAy)&&(k.gider==='maas'||k.gider==='sgk'));
+ const personelKart=()=>{const O=personelOzet(PL);if(!O.length)return '';const sat=(l,v,b)=>`<div style="display:flex;justify-content:space-between;padding:2px 0;${b?'font-weight:700':'color:var(--mut);font-size:13px'}"><span>${l}</span><span class="${b?'red':''}">${fmt(v)}</span></div>`,sm=f=>yuvarla(O.reduce((a,p)=>a+p[f],0));
+  return `<div class="card" style="margin-bottom:10px"><small style="color:var(--mut)">Personel bazında maaş + prim</small>${O.map(p=>`<div style="border-top:1px solid var(--line);margin-top:7px;padding-top:6px"><b>${esc(p.ad)}</b>${p.maas?sat('Maaş',p.maas):''}${p.sgk?sat('SGK primi',p.sgk):''}${p.bagkur?sat('Bağ-Kur primi',p.bagkur):''}${sat('Maaş + prim toplamı',p.top,1)}</div>`).join('')}<div style="border-top:2px solid var(--line);margin-top:8px;padding-top:6px">${sat('Toplam maaş',sm('maas'))}${sat('SGK primi (Bağ-Kur hariç)',sm('sgk'))}${sat('Bağ-Kur primi',sm('bagkur'))}${sat('MAAŞ + SGK + BAĞ-KUR TOPLAMI',yuvarla(sm('maas')+sm('sgk')+sm('bagkur')),1)}</div></div>`};
+ if((giderTur==='maas'||giderTur==='sgk')&&L.length)kisi=personelKart();
+ if((giderTur==='vergi'||giderTur==='sgk')&&L.length){const p={};L.forEach(k=>{const n=(giderTur==='sgk'?k.sgkTur:k.vergiTur)||(giderTur==='sgk'?'Diğer SGK ödemesi':'Diğer vergi');p[n]=(p[n]||0)+k.tutar});
+  kisi+=`<div class="card" style="margin-bottom:10px"><small style="color:var(--mut)">${giderTur==='sgk'?'Prim türü':'Vergi türü'} bazında</small>${Object.entries(p).sort((a,b)=>b[1]-a[1]).map(([n,t])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line);margin-top:5px"><span>${esc(n)}</span><b class="red">${fmt(t)}</b></div>`).join('')}</div>`}
  return `<h3 style="margin:22px 0 8px">🧾 Giderler</h3>
  <div class="grid g2" style="margin-bottom:10px"><div class="card stat" style="grid-column:1/-1"><small>TOPLAM GİDER${giderAy==='hepsi'?'':' · '+ayAd(giderAy)}</small><b class="red" style="font-size:24px">${fmt(top)}</b></div><div class="card stat"><small>🧾 Genel Giderler</small><b class="red">${fmt(g)}</b></div><div class="card stat"><small>👥 Maaş Giderleri</small><b class="red">${fmt(m)}</b></div><div class="card stat"><small>🛡️ SGK Prim Ödemeleri</small><b class="red">${fmt(sg)}</b></div><div class="card stat" style="grid-column:1/-1"><small>👥+🛡️ Maaş + SGK Prim Toplamı</small><b class="red">${fmt(m+sg)}</b></div><div class="card stat"><small>🏛️ Vergi Giderleri</small><b class="red">${fmt(v)}</b></div>${d>0?`<div class="card stat" style="grid-column:1/-1"><small>Diğer çıkışlar</small><b class="red">${fmt(d)}</b></div>`:''}</div>
  <div class="tabs" style="margin-bottom:10px">${tb('hepsi','Hepsi')}${tb('genel','Genel Giderler')}${tb('maas','Maaş Giderleri')}${tb('sgk','SGK Prim Ödemeleri')}${tb('vergi','Vergi Giderleri')}${d>0||giderTur==='diger'?tb('diger','Diğer'):''}</div>
